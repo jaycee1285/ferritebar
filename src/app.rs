@@ -5,6 +5,24 @@ use crate::config;
 use crate::modules;
 use crate::theme;
 
+fn set_icon_theme(icon_theme: &Option<String>) {
+    if let Some(ref name) = icon_theme {
+        if let Some(settings) = gtk::Settings::default() {
+            settings.set_gtk_icon_theme_name(Some(name));
+        }
+
+        // Force the display IconTheme to pick up the change
+        if let Some(display) = gtk::gdk::Display::default() {
+            let icon_theme_obj = gtk::IconTheme::for_display(&display);
+            // Use GObject property instead of set_theme_name (which asserts on singletons)
+            use glib::object::ObjectExt;
+            icon_theme_obj.set_property("theme-name", name);
+        }
+
+        info!("Set icon theme to {name}");
+    }
+}
+
 pub fn activate(app: &gtk::Application) {
     let config_path = config::default_config_path();
     let cfg = config::load_config(&config_path);
@@ -22,16 +40,11 @@ pub fn activate(app: &gtk::Application) {
     gtk::style_context_add_provider_for_display(
         &display,
         &provider,
-        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        gtk::STYLE_PROVIDER_PRIORITY_USER + 1,
     );
 
     // Set icon theme if configured
-    if let Some(ref icon_theme) = cfg.theme.icon_theme {
-        if let Some(settings) = gtk::Settings::default() {
-            settings.set_gtk_icon_theme_name(Some(icon_theme));
-            info!("Set icon theme to {icon_theme}");
-        }
-    }
+    set_icon_theme(&cfg.theme.icon_theme);
 
     // Create bar
     let bar = Bar::new(app, &cfg.bar);
@@ -55,12 +68,8 @@ pub fn activate(app: &gtk::Application) {
         // Reload CSS (instant theme updates)
         provider.load_from_string(&css);
 
-        // Update icon theme
-        if let Some(ref icon_theme) = cfg.theme.icon_theme {
-            if let Some(settings) = gtk::Settings::default() {
-                settings.set_gtk_icon_theme_name(Some(icon_theme));
-            }
-        }
+        // Update icon theme before rebuilding
+        set_icon_theme(&cfg.theme.icon_theme);
 
         // Clear and rebuild modules
         bar_ref.clear();

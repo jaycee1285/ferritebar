@@ -132,7 +132,7 @@ fn find_gtk4_theme_css() -> Option<String> {
     None
 }
 
-/// Parse @define-color declarations from GTK CSS
+/// Parse @define-color declarations from GTK CSS, resolving @references
 fn parse_define_colors(css: &str) -> HashMap<String, String> {
     let mut colors = HashMap::new();
 
@@ -144,6 +144,16 @@ fn parse_define_colors(css: &str) -> HashMap<String, String> {
                 let name = rest[..space_idx].trim().to_string();
                 let value = rest[space_idx..].trim().trim_end_matches(';').trim().to_string();
                 colors.insert(name, value);
+            }
+        }
+    }
+
+    // Resolve @references (e.g. @define-color theme_bg_color @bg_color)
+    let snapshot = colors.clone();
+    for value in colors.values_mut() {
+        if let Some(ref_name) = value.strip_prefix('@') {
+            if let Some(resolved) = snapshot.get(ref_name) {
+                *value = resolved.clone();
             }
         }
     }
@@ -166,7 +176,7 @@ window {{
 }}
 
 .module {{
-    padding: 0 6px;
+    padding: 0 4px;
     margin: 0 1px;
 }}
 

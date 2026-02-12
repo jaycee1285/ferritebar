@@ -116,7 +116,7 @@ pub struct ClockConfig {
 }
 
 fn default_clock_format() -> String {
-    "%I:%M %p".to_string()
+    "%-I:%M %p".to_string()
 }
 
 fn default_clock_tooltip_format() -> String {
