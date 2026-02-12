@@ -1,0 +1,72 @@
+[bar]
+position = "top"
+height = 32
+
+[theme]
+icon_theme = "YAMIS"
+# Override colors (optional - auto-detected from GTK4 theme)
+# success_color = "#a3be8c"
+# warning_color = "#facc15"
+# error_color = "#f87171"
+
+[[modules.left]]
+type = "memory"
+format = "{icon}"
+interval = 3
+bar_width = 8
+bar_height = 22
+
+[[modules.left]]
+type = "swap"
+format = "{icon}"
+interval = 5
+bar_width = 8
+bar_height = 22
+
+[[modules.center]]
+type = "taskbar"
+display = "icon"  # "icon", "title", or "both"
+icon_size = 32
+max_title_length = 30
+
+[[modules.right]]
+type = "script"
+name = "wg"
+exec = "ip link show wg0 >/dev/null 2>&1 && echo '{\"text\":\"VPN\",\"class\":\"connected\"}' || echo '{\"text\":\"VPN\",\"class\":\"disconnected\"}'"
+interval = 30
+icon = "\uf023"
+return_type = "json"
+
+[[modules.right]]
+type = "tray"
+icon_size = 20
+
+[[modules.right]]
+type = "network"
+format = "{icon}"
+interval = 10
+
+[[modules.right]]
+type = "audio"
+format = "{icon}"
+on_click = "wpctl set-mute @DEFAULT_SINK@ toggle"
+
+[[modules.right]]
+type = "battery"
+format = "{icon}"
+path = "/sys/class/power_supply/BAT0"
+interval = 30
+max_charge = 80
+
+[[modules.right]]
+type = "clock"
+format = "%I:%M %p"
+tooltip_format = "%A, %B %d, %Y"
+
+[[modules.right]]
+type = "power"
+icon = "\u23FB"
+lock_cmd = "swaylock"
+suspend_cmd = "systemctl suspend"
+reboot_cmd = "systemctl reboot"
+shutdown_cmd = "systemctl poweroff"
