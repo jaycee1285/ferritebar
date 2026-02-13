@@ -279,12 +279,12 @@ window {{
     background-color: alpha({selected_bg}, 0.3);
 }}
 
-.connected {{
-    color: {fg};
+.connected .module-label {{
+    color: {success};
 }}
 
-.disconnected {{
-    color: alpha({fg}, 0.4);
+.disconnected .module-label {{
+    color: {warning};
 }}
 
 .muted {{
