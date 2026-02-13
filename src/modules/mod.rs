@@ -1,5 +1,6 @@
 pub mod clock;
 pub mod memory;
+mod meminfo;
 pub mod swap;
 pub mod script;
 pub mod battery;

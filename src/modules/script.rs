@@ -109,7 +109,7 @@ pub fn build(config: &ScriptConfig) -> gtk::Widget {
     let container_ref = container.clone();
     let mut prev_class: Option<String> = None;
 
-    super::recv_on_main_thread(rx, move |data| {
+    super::recv_on_main_thread(rx, move |mut data| {
         label.set_label(&data.text);
 
         if let Some(ref tooltip) = data.tooltip {
@@ -126,7 +126,8 @@ pub fn build(config: &ScriptConfig) -> gtk::Widget {
             container_ref.add_css_class(class);
         }
 
-        prev_class = data.class.clone();
+        // Take ownership instead of cloning
+        prev_class = std::mem::take(&mut data.class);
     });
 
     debug!("Script module '{}' created", config.name);

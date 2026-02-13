@@ -18,12 +18,35 @@ pub fn build(config: &ClockConfig) -> gtk::Widget {
     // Spawn controller
     crate::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+        let mut prev_display = String::new();
+        let mut display_buf = String::with_capacity(32);
+        let mut tooltip_buf = String::with_capacity(64);
         loop {
             interval.tick().await;
             let now = chrono::Local::now();
+
+            display_buf.clear();
+            let _ = std::fmt::Write::write_fmt(
+                &mut display_buf,
+                format_args!("{}", now.format(&format)),
+            );
+
+            // Skip send if display hasn't changed
+            if display_buf == prev_display {
+                continue;
+            }
+            prev_display.clear();
+            prev_display.push_str(&display_buf);
+
+            tooltip_buf.clear();
+            let _ = std::fmt::Write::write_fmt(
+                &mut tooltip_buf,
+                format_args!("{}", now.format(&tooltip_format)),
+            );
+
             let data = ClockData {
-                display: now.format(&format).to_string(),
-                tooltip: now.format(&tooltip_format).to_string(),
+                display: display_buf.clone(),
+                tooltip: tooltip_buf.clone(),
             };
             if tx.send(data).await.is_err() {
                 break;

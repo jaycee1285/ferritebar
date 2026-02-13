@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use gtk::prelude::*;
 use tokio::sync::mpsc;
 use tracing::debug;
@@ -88,12 +90,24 @@ pub fn build(config: &AudioConfig) -> gtk::Widget {
 
     // Bridge to GTK
     let container_ref = container.clone();
+    let mut buf = String::with_capacity(32);
+    let mut tooltip_buf = String::with_capacity(32);
     super::recv_on_main_thread(rx, move |data| {
         let icon = audio_icon(data.volume, data.muted);
-        let text = format
-            .replace("{icon}", icon)
-            .replace("{volume}", &data.volume.to_string());
-        label.set_label(&text);
+
+        buf.clear();
+        for part in format.split('{') {
+            if let Some(rest) = part.strip_prefix("icon}") {
+                buf.push_str(icon);
+                buf.push_str(rest);
+            } else if let Some(rest) = part.strip_prefix("volume}") {
+                let _ = write!(buf, "{}", data.volume);
+                buf.push_str(rest);
+            } else {
+                buf.push_str(part);
+            }
+        }
+        label.set_label(&buf);
 
         if data.muted {
             container_ref.add_css_class("muted");
@@ -101,11 +115,12 @@ pub fn build(config: &AudioConfig) -> gtk::Widget {
             container_ref.remove_css_class("muted");
         }
 
-        container_ref.set_tooltip_text(Some(&format!(
-            "Volume: {}%{}",
-            data.volume,
-            if data.muted { " (Muted)" } else { "" }
-        )));
+        tooltip_buf.clear();
+        let _ = write!(tooltip_buf, "Volume: {}%", data.volume);
+        if data.muted {
+            tooltip_buf.push_str(" (Muted)");
+        }
+        container_ref.set_tooltip_text(Some(&tooltip_buf));
     });
 
     debug!("Audio module created");

@@ -5,37 +5,37 @@ use tracing::{debug, warn};
 
 #[derive(Debug, Clone)]
 pub struct ThemeColors {
-    pub bg: String,
-    pub fg: String,
-    pub text: String,
-    pub selected_bg: String,
-    pub selected_fg: String,
-    pub success: String,
-    pub warning: String,
-    pub error: String,
+    pub bg: Box<str>,
+    pub fg: Box<str>,
+    pub text: Box<str>,
+    pub selected_bg: Box<str>,
+    pub selected_fg: Box<str>,
+    pub success: Box<str>,
+    pub warning: Box<str>,
+    pub error: Box<str>,
 }
 
 impl Default for ThemeColors {
     fn default() -> Self {
         Self {
-            bg: "#2e3440".to_string(),
-            fg: "#d8dee9".to_string(),
-            text: "#eceff4".to_string(),
-            selected_bg: "#5e81ac".to_string(),
-            selected_fg: "#eceff4".to_string(),
-            success: "#a3be8c".to_string(),
-            warning: "#facc15".to_string(),
-            error: "#f87171".to_string(),
+            bg: "#2e3440".into(),
+            fg: "#d8dee9".into(),
+            text: "#eceff4".into(),
+            selected_bg: "#5e81ac".into(),
+            selected_fg: "#eceff4".into(),
+            success: "#a3be8c".into(),
+            warning: "#facc15".into(),
+            error: "#f87171".into(),
         }
     }
 }
 
 /// Resolve a color name from the parsed map, trying modern libadwaita names first,
 /// then falling back to legacy GTK3 names.
-fn resolve_color(defined: &HashMap<String, String>, names: &[&str]) -> Option<String> {
+fn resolve_color(defined: &HashMap<String, String>, names: &[&str]) -> Option<Box<str>> {
     for name in names {
         if let Some(c) = defined.get(*name) {
-            return Some(c.clone());
+            return Some(c.clone().into_boxed_str());
         }
     }
     None
@@ -87,13 +87,13 @@ pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
 
     // User overrides from config (highest priority)
     if let Some(ref c) = theme_config.success_color {
-        colors.success = c.clone();
+        colors.success = c.clone().into_boxed_str();
     }
     if let Some(ref c) = theme_config.warning_color {
-        colors.warning = c.clone();
+        colors.warning = c.clone().into_boxed_str();
     }
     if let Some(ref c) = theme_config.error_color {
-        colors.error = c.clone();
+        colors.error = c.clone().into_boxed_str();
     }
 
     colors

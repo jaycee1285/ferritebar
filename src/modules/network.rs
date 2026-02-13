@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use gtk::prelude::*;
 use tokio::sync::mpsc;
 use tracing::debug;
@@ -7,9 +9,9 @@ use crate::config::types::NetworkConfig;
 #[derive(Debug)]
 struct NetworkData {
     connected: bool,
-    interface: String,
+    interface: Box<str>,
     kind: NetKind,
-    ssid: Option<String>,
+    ssid: Option<Box<str>>,
 }
 
 #[derive(Debug)]
@@ -32,7 +34,7 @@ async fn read_network() -> NetworkData {
 
     NetworkData {
         connected: false,
-        interface: String::new(),
+        interface: String::new().into_boxed_str(),
         kind: NetKind::None,
         ssid: None,
     }
@@ -68,21 +70,21 @@ async fn try_nmcli() -> Option<NetworkData> {
             // Get SSID from active wifi connection
             let ssid = get_wifi_ssid(device).await.or_else(|| {
                 if !connection.is_empty() && connection != "--" {
-                    Some(connection.to_string())
+                    Some(connection.into())
                 } else {
                     None
                 }
             });
             return Some(NetworkData {
                 connected: true,
-                interface: device.to_string(),
+                interface: device.into(),
                 kind: NetKind::Wifi,
                 ssid,
             });
         } else if dev_type == "ethernet" {
             return Some(NetworkData {
                 connected: true,
-                interface: device.to_string(),
+                interface: device.into(),
                 kind: NetKind::Ethernet,
                 ssid: None,
             });
@@ -92,7 +94,7 @@ async fn try_nmcli() -> Option<NetworkData> {
     None
 }
 
-async fn get_wifi_ssid(device: &str) -> Option<String> {
+async fn get_wifi_ssid(device: &str) -> Option<Box<str>> {
     let output = tokio::process::Command::new("nmcli")
         .args(["-t", "-f", "active,ssid", "dev", "wifi", "list", "ifname", device])
         .output()
@@ -103,7 +105,7 @@ async fn get_wifi_ssid(device: &str) -> Option<String> {
     for line in stdout.lines() {
         if let Some(ssid) = line.strip_prefix("yes:") {
             if !ssid.is_empty() {
-                return Some(ssid.to_string());
+                return Some(ssid.into());
             }
         }
     }
@@ -138,7 +140,7 @@ async fn try_sysfs() -> Option<NetworkData> {
 
                 return Some(NetworkData {
                     connected: true,
-                    interface: name,
+                    interface: name.into_boxed_str(),
                     kind,
                     ssid,
                 });
@@ -149,7 +151,7 @@ async fn try_sysfs() -> Option<NetworkData> {
     None
 }
 
-async fn get_iw_ssid(interface: &str) -> Option<String> {
+async fn get_iw_ssid(interface: &str) -> Option<Box<str>> {
     let output = tokio::process::Command::new("iw")
         .args(["dev", interface, "info"])
         .output()
@@ -160,7 +162,7 @@ async fn get_iw_ssid(interface: &str) -> Option<String> {
     for line in stdout.lines() {
         let trimmed = line.trim();
         if let Some(ssid) = trimmed.strip_prefix("ssid ") {
-            return Some(ssid.to_string());
+            return Some(ssid.into());
         }
     }
     None
@@ -218,10 +220,21 @@ pub fn build(config: &NetworkConfig) -> gtk::Widget {
     let format = config.format.clone();
 
     let container_ref = container.clone();
+    let mut buf = String::with_capacity(32);
+    let mut tooltip_buf = String::with_capacity(64);
     super::recv_on_main_thread(rx, move |data| {
         let icon = network_icon(&data);
-        let text = format.replace("{icon}", icon);
-        label.set_label(&text);
+
+        buf.clear();
+        for part in format.split('{') {
+            if let Some(rest) = part.strip_prefix("icon}") {
+                buf.push_str(icon);
+                buf.push_str(rest);
+            } else {
+                buf.push_str(part);
+            }
+        }
+        label.set_label(&buf);
 
         if data.connected {
             container_ref.remove_css_class("disconnected");
@@ -231,13 +244,22 @@ pub fn build(config: &NetworkConfig) -> gtk::Widget {
             container_ref.add_css_class("disconnected");
         }
 
-        let tooltip = match (&data.kind, &data.ssid) {
-            (NetKind::Wifi, Some(ssid)) => format!("WiFi: {ssid} ({})", data.interface),
-            (NetKind::Wifi, None) => format!("WiFi: {} (connected)", data.interface),
-            (NetKind::Ethernet, _) => format!("Ethernet: {}", data.interface),
-            _ => "Disconnected".to_string(),
-        };
-        container_ref.set_tooltip_text(Some(&tooltip));
+        tooltip_buf.clear();
+        match (&data.kind, &data.ssid) {
+            (NetKind::Wifi, Some(ssid)) => {
+                let _ = write!(tooltip_buf, "WiFi: {ssid} ({})", data.interface);
+            }
+            (NetKind::Wifi, None) => {
+                let _ = write!(tooltip_buf, "WiFi: {} (connected)", data.interface);
+            }
+            (NetKind::Ethernet, _) => {
+                let _ = write!(tooltip_buf, "Ethernet: {}", data.interface);
+            }
+            _ => {
+                tooltip_buf.push_str("Disconnected");
+            }
+        }
+        container_ref.set_tooltip_text(Some(&tooltip_buf));
     });
 
     debug!("Network module created");

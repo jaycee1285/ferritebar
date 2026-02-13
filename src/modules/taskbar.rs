@@ -292,11 +292,11 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
     container.upcast()
 }
 
-fn truncate_title(title: &str, max_len: usize) -> String {
+fn truncate_title(title: &str, max_len: usize) -> std::borrow::Cow<'_, str> {
     if title.len() <= max_len {
-        title.to_string()
+        std::borrow::Cow::Borrowed(title)
     } else {
-        format!("{}...", &title[..max_len.saturating_sub(3)])
+        std::borrow::Cow::Owned(format!("{}...", &title[..max_len.saturating_sub(3)]))
     }
 }
 

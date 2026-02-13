@@ -1,13 +1,50 @@
+use std::fmt::Write;
+
 use gtk::prelude::*;
 use tokio::sync::mpsc;
 use tracing::debug;
 
 use crate::config::types::BatteryConfig;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
+enum BatteryStatus {
+    Charging,
+    Discharging,
+    NotCharging,
+    Full,
+    Unknown,
+}
+
+impl BatteryStatus {
+    fn parse(s: &str) -> Self {
+        match s.trim() {
+            "Charging" => Self::Charging,
+            "Discharging" => Self::Discharging,
+            "Not charging" => Self::NotCharging,
+            "Full" => Self::Full,
+            _ => Self::Unknown,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Charging => "Charging",
+            Self::Discharging => "Discharging",
+            Self::NotCharging => "Not charging",
+            Self::Full => "Full",
+            Self::Unknown => "Unknown",
+        }
+    }
+
+    fn is_charging(self) -> bool {
+        matches!(self, Self::Charging)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 struct BatteryData {
     percentage: u8,
-    status: String,
+    status: BatteryStatus,
 }
 
 fn read_battery(path: &str) -> Option<BatteryData> {
@@ -16,10 +53,8 @@ fn read_battery(path: &str) -> Option<BatteryData> {
         .trim()
         .parse::<u8>()
         .ok()?;
-    let status = std::fs::read_to_string(format!("{path}/status"))
-        .ok()?
-        .trim()
-        .to_string();
+    let raw_status = std::fs::read_to_string(format!("{path}/status")).ok()?;
+    let status = BatteryStatus::parse(&raw_status);
     Some(BatteryData {
         percentage: capacity,
         status,
@@ -79,15 +114,29 @@ pub fn build(config: &BatteryConfig) -> gtk::Widget {
 
     // Bridge to GTK
     let container_ref = container.clone();
+    let mut buf = String::with_capacity(64);
+    let mut tooltip_buf = String::with_capacity(64);
     super::recv_on_main_thread(rx, move |data| {
-        let charging = data.status == "Charging";
+        let charging = data.status.is_charging();
         let icon = battery_icon(data.percentage, charging, max_charge);
 
-        let text = format
-            .replace("{icon}", icon)
-            .replace("{percentage}", &data.percentage.to_string())
-            .replace("{status}", &data.status);
-        label.set_label(&text);
+        buf.clear();
+        // Manual replacement into reusable buffer
+        for part in format.split('{') {
+            if let Some(rest) = part.strip_prefix("icon}") {
+                buf.push_str(icon);
+                buf.push_str(rest);
+            } else if let Some(rest) = part.strip_prefix("percentage}") {
+                let _ = write!(buf, "{}", data.percentage);
+                buf.push_str(rest);
+            } else if let Some(rest) = part.strip_prefix("status}") {
+                buf.push_str(data.status.as_str());
+                buf.push_str(rest);
+            } else {
+                buf.push_str(part);
+            }
+        }
+        label.set_label(&buf);
 
         // Update CSS classes
         container_ref.remove_css_class("charging");
@@ -110,15 +159,24 @@ pub fn build(config: &BatteryConfig) -> gtk::Widget {
         }
 
         // Tooltip with percentage and status
-        let tooltip = if max_charge < 100 {
-            format!(
+        tooltip_buf.clear();
+        if max_charge < 100 {
+            let _ = write!(
+                tooltip_buf,
                 "Battery: {}% / {}% max ({})",
-                data.percentage, max_charge, data.status
-            )
+                data.percentage,
+                max_charge,
+                data.status.as_str()
+            );
         } else {
-            format!("Battery: {}% ({})", data.percentage, data.status)
-        };
-        container_ref.set_tooltip_text(Some(&tooltip));
+            let _ = write!(
+                tooltip_buf,
+                "Battery: {}% ({})",
+                data.percentage,
+                data.status.as_str()
+            );
+        }
+        container_ref.set_tooltip_text(Some(&tooltip_buf));
     });
 
     debug!("Battery module created");

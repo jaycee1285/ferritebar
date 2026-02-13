@@ -160,7 +160,7 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
         TrayUpdate::Add {
             address,
             icon_name,
-            icon_pixmap,
+            mut icon_pixmap,
             icon_theme_path,
             title,
         } => {
@@ -181,7 +181,7 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
                     }
                     image.set_icon_name(Some(name));
                 }
-            } else if let Some(ref pixmaps) = icon_pixmap {
+            } else if let Some(ref mut pixmaps) = icon_pixmap {
                 if let Some(texture) = pixmap_to_texture(pixmaps, icon_size as u32) {
                     image.set_paintable(Some(&texture));
                 }
@@ -218,7 +218,7 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
         TrayUpdate::UpdateIcon {
             address,
             icon_name,
-            icon_pixmap,
+            mut icon_pixmap,
         } => {
             if let Some(image) = items_ref.borrow().get(&address) {
                 if let Some(ref name) = icon_name {
@@ -227,7 +227,7 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
                         return;
                     }
                 }
-                if let Some(ref pixmaps) = icon_pixmap {
+                if let Some(ref mut pixmaps) = icon_pixmap {
                     if let Some(texture) = pixmap_to_texture(pixmaps, icon_size as u32) {
                         image.set_paintable(Some(&texture));
                     }
@@ -248,16 +248,17 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
     container.upcast()
 }
 
-/// Convert ARGB32 pixmap to GTK Texture
+/// Convert ARGB32 pixmap to GTK Texture, taking ownership to avoid cloning pixel data
 fn pixmap_to_texture(
-    pixmaps: &[system_tray::item::IconPixmap],
+    pixmaps: &mut Vec<system_tray::item::IconPixmap>,
     target_size: u32,
 ) -> Option<Texture> {
-    // Find best size match
-    let pixmap = pixmaps
+    // Find index of best size match
+    let best_idx = pixmaps
         .iter()
-        .filter(|p| p.width > 0 && p.height > 0)
-        .min_by_key(|p| {
+        .enumerate()
+        .filter(|(_, p)| p.width > 0 && p.height > 0)
+        .min_by_key(|(_, p)| {
             let diff = (p.width as i32 - target_size as i32).abs();
             // Prefer sizes >= target
             if p.width as u32 >= target_size {
@@ -265,14 +266,17 @@ fn pixmap_to_texture(
             } else {
                 diff + 1000
             }
-        })?;
+        })
+        .map(|(i, _)| i)?;
+
+    let pixmap = pixmaps.swap_remove(best_idx);
 
     if pixmap.pixels.is_empty() {
         return None;
     }
 
-    // Convert ARGB32 to RGBA32
-    let mut pixels = pixmap.pixels.clone();
+    // Convert ARGB32 to RGBA32 in-place (we own the data)
+    let mut pixels = pixmap.pixels;
     for chunk in pixels.chunks_exact_mut(4) {
         let a = chunk[0];
         chunk[0] = chunk[1]; // R
