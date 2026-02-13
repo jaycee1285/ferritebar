@@ -74,7 +74,7 @@ pub fn build(config: &ScriptConfig) -> gtk::Widget {
         }
     });
 
-    let container = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let container = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     container.add_css_class("module");
     container.add_css_class("script");
     container.add_css_class(&format!("script-{}", config.name));
@@ -111,13 +111,6 @@ pub fn build(config: &ScriptConfig) -> gtk::Widget {
 
     super::recv_on_main_thread(rx, move |data| {
         label.set_label(&data.text);
-
-        // Tight padding for short text (≤4 chars like "VPN")
-        if data.text.chars().count() <= 4 {
-            container_ref.add_css_class("compact");
-        } else {
-            container_ref.remove_css_class("compact");
-        }
 
         if let Some(ref tooltip) = data.tooltip {
             container_ref.set_tooltip_text(Some(tooltip));

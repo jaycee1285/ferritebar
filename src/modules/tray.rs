@@ -2,7 +2,7 @@ use gtk::prelude::*;
 use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::gdk::Texture;
 use tokio::sync::mpsc;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::config::types::TrayConfig;
 
@@ -25,8 +25,15 @@ enum TrayUpdate {
     },
 }
 
+#[derive(Debug)]
+enum ActivateAction {
+    Primary(String),
+    Secondary(String),
+}
+
 pub fn build(config: &TrayConfig) -> gtk::Widget {
     let (tx, rx) = mpsc::channel::<TrayUpdate>(32);
+    let (activate_tx, mut activate_rx) = mpsc::channel::<ActivateAction>(16);
     let icon_size = config.icon_size;
 
     // Spawn tray client controller
@@ -57,41 +64,75 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
                     let _ = tx.send(update).await;
                 }
 
-                // Listen for events
-                while let Ok(event) = event_rx.recv().await {
-                    match event {
-                        system_tray::client::Event::Add(address, item) => {
-                            let _ = tx
-                                .send(TrayUpdate::Add {
-                                    address,
-                                    icon_name: item.icon_name.clone(),
-                                    icon_pixmap: item.icon_pixmap.clone(),
-                                    icon_theme_path: item
-                                        .icon_theme_path
-                                        .as_ref()
-                                        .map(|p| p.clone()),
-                                    title: item.title.clone(),
-                                })
-                                .await;
-                        }
-                        system_tray::client::Event::Update(address, update) => {
-                            use system_tray::client::UpdateEvent;
-                            if let UpdateEvent::Icon {
-                                icon_name,
-                                icon_pixmap,
-                            } = update
-                            {
-                                let _ = tx
-                                    .send(TrayUpdate::UpdateIcon {
-                                        address,
+                // Listen for events and activation requests
+                loop {
+                    tokio::select! {
+                        event = event_rx.recv() => {
+                            let event = match event {
+                                Ok(event) => event,
+                                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                                    warn!("Tray receiver lagged, missed {n} events");
+                                    continue;
+                                }
+                                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                            };
+                            match event {
+                                system_tray::client::Event::Add(address, item) => {
+                                    let _ = tx
+                                        .send(TrayUpdate::Add {
+                                            address,
+                                            icon_name: item.icon_name.clone(),
+                                            icon_pixmap: item.icon_pixmap.clone(),
+                                            icon_theme_path: item
+                                                .icon_theme_path
+                                                .as_ref()
+                                                .map(|p| p.clone()),
+                                            title: item.title.clone(),
+                                        })
+                                        .await;
+                                }
+                                system_tray::client::Event::Update(address, update) => {
+                                    use system_tray::client::UpdateEvent;
+                                    if let UpdateEvent::Icon {
                                         icon_name,
                                         icon_pixmap,
-                                    })
-                                    .await;
+                                    } = update
+                                    {
+                                        let _ = tx
+                                            .send(TrayUpdate::UpdateIcon {
+                                                address,
+                                                icon_name,
+                                                icon_pixmap,
+                                            })
+                                            .await;
+                                    }
+                                }
+                                system_tray::client::Event::Remove(address) => {
+                                    let _ = tx.send(TrayUpdate::Remove { address }).await;
+                                }
                             }
                         }
-                        system_tray::client::Event::Remove(address) => {
-                            let _ = tx.send(TrayUpdate::Remove { address }).await;
+                        action = activate_rx.recv() => {
+                            let Some(action) = action else { break };
+                            let req = match action {
+                                ActivateAction::Primary(address) => {
+                                    system_tray::client::ActivateRequest::Default {
+                                        address,
+                                        x: 0,
+                                        y: 0,
+                                    }
+                                }
+                                ActivateAction::Secondary(address) => {
+                                    system_tray::client::ActivateRequest::Secondary {
+                                        address,
+                                        x: 0,
+                                        y: 0,
+                                    }
+                                }
+                            };
+                            if let Err(e) = client.activate(req).await {
+                                debug!("Tray activate failed: {e}");
+                            }
                         }
                     }
                 }
@@ -102,10 +143,11 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
         }
     });
 
-    // Build widget
+    // Build widget (hidden until items arrive)
     let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
     container.add_css_class("module");
     container.add_css_class("tray");
+    container.set_visible(false);
 
     // Track tray items by address -> widget
     let items: std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, gtk::Image>>> =
@@ -149,8 +191,29 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
                 image.set_tooltip_text(Some(t));
             }
 
+            // Left-click: primary activate
+            let left_click = gtk::GestureClick::new();
+            left_click.set_button(1);
+            let addr = address.clone();
+            let tx = activate_tx.clone();
+            left_click.connect_released(move |_, _, _, _| {
+                let _ = tx.try_send(ActivateAction::Primary(addr.clone()));
+            });
+            image.add_controller(left_click);
+
+            // Right-click: secondary activate
+            let right_click = gtk::GestureClick::new();
+            right_click.set_button(3);
+            let addr = address.clone();
+            let tx = activate_tx.clone();
+            right_click.connect_released(move |_, _, _, _| {
+                let _ = tx.try_send(ActivateAction::Secondary(addr.clone()));
+            });
+            image.add_controller(right_click);
+
             container_ref.append(&image);
             items_ref.borrow_mut().insert(address, image);
+            container_ref.set_visible(true);
         }
         TrayUpdate::UpdateIcon {
             address,
@@ -174,6 +237,9 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
         TrayUpdate::Remove { address } => {
             if let Some(image) = items_ref.borrow_mut().remove(&address) {
                 container_ref.remove(&image);
+            }
+            if items_ref.borrow().is_empty() {
+                container_ref.set_visible(false);
             }
         }
     });

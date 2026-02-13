@@ -17,7 +17,7 @@ serde_json = "1"
 system-tray = "0.8"
 wayland-client = "0.31"
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
-smithay-client-toolkit = { version = "0.20", features = ["calloop"] }
+
 
 notify = "8"
 chrono = { version = "0.4", features = ["clock"] }

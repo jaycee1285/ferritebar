@@ -15,7 +15,11 @@ static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 /// Get or initialize the shared Tokio runtime
 pub fn runtime() -> &'static Runtime {
     RUNTIME.get_or_init(|| {
-        Runtime::new().expect("Failed to create Tokio runtime")
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("Failed to create Tokio runtime")
     })
 }
 
