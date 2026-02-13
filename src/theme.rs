@@ -30,6 +30,17 @@ impl Default for ThemeColors {
     }
 }
 
+/// Resolve a color name from the parsed map, trying modern libadwaita names first,
+/// then falling back to legacy GTK3 names.
+fn resolve_color(defined: &HashMap<String, String>, names: &[&str]) -> Option<String> {
+    for name in names {
+        if let Some(c) = defined.get(*name) {
+            return Some(c.clone());
+        }
+    }
+    None
+}
+
 /// Extract colors from the active GTK4 theme CSS files
 pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
     let mut colors = ThemeColors::default();
@@ -38,20 +49,35 @@ pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
     if let Some(theme_css) = find_gtk4_theme_css() {
         let defined = parse_define_colors(&theme_css);
 
-        if let Some(c) = defined.get("theme_bg_color") {
-            colors.bg = c.clone();
+        // Background: libadwaita window_bg_color, then legacy theme_bg_color
+        if let Some(c) = resolve_color(&defined, &["window_bg_color", "theme_bg_color"]) {
+            colors.bg = c;
         }
-        if let Some(c) = defined.get("theme_fg_color") {
-            colors.fg = c.clone();
+        // Foreground: libadwaita window_fg_color, then legacy theme_fg_color
+        if let Some(c) = resolve_color(&defined, &["window_fg_color", "theme_fg_color"]) {
+            colors.fg = c;
         }
-        if let Some(c) = defined.get("theme_text_color") {
-            colors.text = c.clone();
+        // Text: view_fg_color, then legacy theme_text_color, then window_fg_color
+        if let Some(c) = resolve_color(&defined, &["view_fg_color", "theme_text_color", "window_fg_color"]) {
+            colors.text = c;
         }
-        if let Some(c) = defined.get("theme_selected_bg_color") {
-            colors.selected_bg = c.clone();
+        // Selected/accent bg: libadwaita accent_bg_color, then legacy theme_selected_bg_color
+        if let Some(c) = resolve_color(&defined, &["accent_bg_color", "theme_selected_bg_color"]) {
+            colors.selected_bg = c;
         }
-        if let Some(c) = defined.get("theme_selected_fg_color") {
-            colors.selected_fg = c.clone();
+        // Selected/accent fg: libadwaita accent_fg_color, then legacy theme_selected_fg_color
+        if let Some(c) = resolve_color(&defined, &["accent_fg_color", "theme_selected_fg_color"]) {
+            colors.selected_fg = c;
+        }
+        // Status colors from theme
+        if let Some(c) = resolve_color(&defined, &["success_color"]) {
+            colors.success = c;
+        }
+        if let Some(c) = resolve_color(&defined, &["warning_color"]) {
+            colors.warning = c;
+        }
+        if let Some(c) = resolve_color(&defined, &["error_color", "destructive_color"]) {
+            colors.error = c;
         }
 
         debug!("Extracted {} colors from GTK4 theme", defined.len());
@@ -59,7 +85,7 @@ pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
         warn!("Could not find GTK4 theme CSS, using defaults");
     }
 
-    // User overrides from config
+    // User overrides from config (highest priority)
     if let Some(ref c) = theme_config.success_color {
         colors.success = c.clone();
     }
