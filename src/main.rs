@@ -10,6 +10,9 @@ use gtk::prelude::*;
 use std::sync::OnceLock;
 use tokio::runtime::Runtime;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
 /// Get or initialize the shared Tokio runtime

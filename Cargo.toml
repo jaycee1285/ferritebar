@@ -23,6 +23,7 @@ notify = "8"
 chrono = { version = "0.4", features = ["clock"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+mimalloc = { version = "0.1", default-features = false }
 
 [profile.release]
 lto = "fat"

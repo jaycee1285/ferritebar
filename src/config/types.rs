@@ -68,7 +68,7 @@ pub struct ThemeConfig {
 }
 
 fn default_font() -> String {
-    "Spline Sans Mono".to_string()
+    "Fira Sans".to_string()
 }
 
 #[derive(Debug, Deserialize, Default)]

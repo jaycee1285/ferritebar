@@ -208,7 +208,7 @@ window {{
 
 .module-label {{
     color: {fg};
-    font-family: "Font Awesome 7 Free Solid", "Font Awesome 7 Free", "Material Design Icons", "Symbols Nerd Font", "{font}", sans-serif;
+    font-family: "Font Awesome 7 Free Solid", "Font Awesome 7 Free", "{font}", sans-serif;
     font-size: {font_size}px;
 }}
 
