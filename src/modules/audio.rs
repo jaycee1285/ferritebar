@@ -120,7 +120,7 @@ pub fn build(config: &AudioConfig) -> gtk::Widget {
         if data.muted {
             tooltip_buf.push_str(" (Muted)");
         }
-        container_ref.set_tooltip_text(Some(&tooltip_buf));
+        super::set_tooltip_text(container_ref.clone(), Some(&tooltip_buf));
     });
 
     debug!("Audio module created");

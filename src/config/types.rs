@@ -62,6 +62,7 @@ pub struct ThemeConfig {
     pub icon_theme: Option<String>,
     #[serde(default = "default_font")]
     pub font: String,
+    pub font_size: Option<u32>,
     pub success_color: Option<String>,
     pub warning_color: Option<String>,
     pub error_color: Option<String>,

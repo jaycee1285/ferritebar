@@ -188,7 +188,7 @@ pub fn build(config: &TrayConfig) -> gtk::Widget {
             }
 
             if let Some(ref t) = title {
-                image.set_tooltip_text(Some(t));
+                super::set_tooltip_text(image.clone(), Some(t));
             }
 
             // Left-click: primary activate

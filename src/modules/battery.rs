@@ -176,7 +176,7 @@ pub fn build(config: &BatteryConfig) -> gtk::Widget {
                 data.status.as_str()
             );
         }
-        container_ref.set_tooltip_text(Some(&tooltip_buf));
+        super::set_tooltip_text(container_ref.clone(), Some(&tooltip_buf));
     });
 
     debug!("Battery module created");

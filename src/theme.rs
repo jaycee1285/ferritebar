@@ -80,9 +80,12 @@ pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
             colors.error = c;
         }
 
-        debug!("Extracted {} colors from GTK4 theme", defined.len());
+        debug!("Extracted {} @define-color entries from GTK4 theme", defined.len());
+        debug!("Resolved colors: bg={}, fg={}, text={}, selected_bg={}, selected_fg={}, success={}, warning={}, error={}",
+            colors.bg, colors.fg, colors.text, colors.selected_bg, colors.selected_fg,
+            colors.success, colors.warning, colors.error);
     } else {
-        warn!("Could not find GTK4 theme CSS, using defaults");
+        warn!("Could not find GTK4 theme CSS, using ALL defaults");
     }
 
     // User overrides from config (highest priority)
@@ -130,10 +133,16 @@ fn find_gtk4_theme_css() -> Option<String> {
     if user_css.exists() {
         if let Ok(css) = std::fs::read_to_string(&user_css) {
             if css.contains("@define-color") {
-                debug!("Using user gtk.css at {}", user_css.display());
+                debug!("Using user gtk.css at {} ({} bytes)", user_css.display(), css.len());
                 return Some(css);
+            } else {
+                warn!("User gtk.css exists at {} but has no @define-color directives", user_css.display());
             }
+        } else {
+            warn!("User gtk.css exists at {} but failed to read", user_css.display());
         }
+    } else {
+        debug!("No user gtk.css at {}", user_css.display());
     }
 
     // Search theme directories
@@ -188,7 +197,7 @@ fn parse_define_colors(css: &str) -> HashMap<String, String> {
 }
 
 /// Generate programmatic CSS from theme colors
-pub fn generate_css(colors: &ThemeColors, bar_height: u32, font: &str) -> String {
+pub fn generate_css(colors: &ThemeColors, bar_height: u32, font: &str, font_size_override: Option<u32>) -> String {
     format!(
         r#"
 window {{
@@ -206,13 +215,13 @@ window {{
     margin: 0 1px;
 }}
 
-.module-label {{
+label.module-label {{
     color: {fg};
     font-family: "Font Awesome 7 Free Solid", "Font Awesome 7 Free", "{font}", sans-serif;
     font-size: {font_size}px;
 }}
 
-.clock .module-label, .taskbar-button {{
+.clock label.module-label, .taskbar-button {{
     font-family: "{font}", sans-serif;
 }}
 
@@ -279,27 +288,27 @@ window {{
     background-color: alpha({selected_bg}, 0.3);
 }}
 
-.connected .module-label {{
+.connected label.module-label {{
     color: {success};
 }}
 
-.disconnected .module-label {{
+.disconnected label.module-label {{
     color: {warning};
 }}
 
-.muted {{
+.muted label.module-label {{
     color: alpha({fg}, 0.4);
 }}
 
-.charging {{
+.charging label.module-label {{
     color: {success};
 }}
 
-.low {{
+.low label.module-label {{
     color: {warning};
 }}
 
-.critical {{
+.critical label.module-label {{
     color: {error};
 }}
 
@@ -308,6 +317,21 @@ tooltip, tooltip.background {{
     color: {fg};
     border: 1px solid alpha({fg}, 0.2);
     border-radius: 4px;
+}}
+
+tooltip label {{
+    text-transform: none;
+    font-variant: normal;
+    font-family: "{font}", sans-serif;
+    font-size: {font_size}px;
+}}
+
+.ferrite-tooltip {{
+    text-transform: none;
+    font-variant: normal;
+    font-family: "{font}", sans-serif;
+    font-size: {font_size}px;
+    color: {fg};
 }}
 "#,
         bg = colors.bg,
@@ -318,7 +342,7 @@ tooltip, tooltip.background {{
         warning = colors.warning,
         error = colors.error,
         font = font,
-        font_size = (bar_height as f64 * 0.55).max(14.0) as u32,
+        font_size = font_size_override.unwrap_or((bar_height as f64 * 0.55).max(14.0) as u32),
         bar_h = bar_height,
     )
 }

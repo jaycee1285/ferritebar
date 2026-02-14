@@ -113,7 +113,9 @@ pub fn build(config: &ScriptConfig) -> gtk::Widget {
         label.set_label(&data.text);
 
         if let Some(ref tooltip) = data.tooltip {
-            container_ref.set_tooltip_text(Some(tooltip));
+            super::set_tooltip_text(container_ref.clone(), Some(tooltip));
+        } else {
+            super::set_tooltip_text(container_ref.clone(), None);
         }
 
         // Remove previous dynamic class

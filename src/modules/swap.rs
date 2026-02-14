@@ -86,7 +86,7 @@ pub fn build(config: &SwapConfig, colors: &ThemeColors) -> gtk::Widget {
             meminfo::format_bytes_into(&mut tooltip_buf, data.total_bytes);
             let _ = write!(tooltip_buf, " ({:.0}%)", data.fraction * 100.0);
         }
-        container_ref.set_tooltip_text(Some(&tooltip_buf));
+        super::set_tooltip_text(container_ref.clone(), Some(&tooltip_buf));
     });
 
     debug!("Swap module created");

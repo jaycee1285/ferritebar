@@ -83,7 +83,7 @@ pub fn build(config: &ClockConfig) -> gtk::Widget {
     let container_ref = container.clone();
     super::recv_on_main_thread(rx, move |data| {
         label.set_label(&data.display);
-        container_ref.set_tooltip_text(Some(&data.tooltip));
+        super::set_tooltip_text(container_ref.clone(), Some(&data.tooltip));
     });
 
     debug!("Clock module created");

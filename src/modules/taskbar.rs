@@ -240,7 +240,8 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
             if info.focused {
                 button.add_css_class("active");
             }
-            button.set_tooltip_text(Some(&format!("{} - {}", info.app_id, info.title)));
+            let tooltip = format!("{} - {}", info.app_id, info.title);
+            super::set_tooltip_text(button.clone(), Some(&tooltip));
 
             // Left click: activate
             let tx = request_tx.clone();
@@ -272,7 +273,8 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
                 update_button_content(
                     button, &info.app_id, &info.title, &display, icon_size, max_title,
                 );
-                button.set_tooltip_text(Some(&format!("{} - {}", info.app_id, info.title)));
+                let tooltip = format!("{} - {}", info.app_id, info.title);
+                super::set_tooltip_text(button.clone(), Some(&tooltip));
 
                 if info.focused {
                     button.add_css_class("active");
