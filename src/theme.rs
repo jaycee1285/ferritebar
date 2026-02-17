@@ -248,13 +248,40 @@ window {{
     min-height: {bar_h}px;
 }}
 
+.workspace-button {{
+    padding: 0 6px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: {fg};
+    min-height: {bar_h}px;
+}}
+
 .taskbar-button:hover {{
+    background-color: alpha({selected_bg}, 0.3);
+}}
+
+.workspace-button:hover {{
     background-color: alpha({selected_bg}, 0.3);
 }}
 
 .taskbar-button.active {{
     background-color: alpha({selected_bg}, 0.5);
     color: {selected_fg};
+}}
+
+.workspace-button.active {{
+    background-color: alpha({selected_bg}, 0.5);
+    color: {selected_fg};
+}}
+
+.workspace-button.urgent {{
+    background-color: alpha({error}, 0.25);
+    color: {error};
+}}
+
+.workspace-button.hidden {{
+    opacity: 0.6;
 }}
 
 .power {{
@@ -286,6 +313,13 @@ window {{
 
 .power-popover button:hover {{
     background-color: alpha({selected_bg}, 0.3);
+}}
+
+.power-hidden {{
+    opacity: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
 }}
 
 .connected label.module-label {{

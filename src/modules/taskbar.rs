@@ -226,8 +226,14 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
     let buttons: std::rc::Rc<std::cell::RefCell<HashMap<u32, gtk::Button>>> =
         std::rc::Rc::new(std::cell::RefCell::new(HashMap::new()));
 
+    // Focused-only mode: show only the active window's button
+    let focused_only = std::rc::Rc::new(std::cell::Cell::new(false));
+    let focused_id = std::rc::Rc::new(std::cell::Cell::new(None::<u32>));
+
     let container_ref = container.clone();
     let buttons_ref = buttons.clone();
+    let focused_only_ref = focused_only.clone();
+    let focused_id_ref = focused_id.clone();
 
     super::recv_on_main_thread(event_rx, move |event| match event {
         ToplevelEvent::New(info) => {
@@ -239,6 +245,11 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
             button.add_css_class("taskbar-button");
             if info.focused {
                 button.add_css_class("active");
+                focused_id_ref.set(Some(info.id));
+            }
+            // Apply focused-only visibility to the new button
+            if focused_only_ref.get() {
+                button.set_visible(focused_id_ref.get() == Some(info.id));
             }
             let tooltip = format!("{} - {}", info.app_id, info.title);
             super::set_tooltip_text(button.clone(), Some(&tooltip));
@@ -278,8 +289,16 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
 
                 if info.focused {
                     button.add_css_class("active");
+                    focused_id_ref.set(Some(info.id));
                 } else {
                     button.remove_css_class("active");
+                }
+            }
+            // In focused-only mode, update visibility for all buttons
+            if focused_only_ref.get() {
+                let cur = focused_id_ref.get();
+                for (id, btn) in buttons_ref.borrow().iter() {
+                    btn.set_visible(Some(*id) == cur);
                 }
             }
         }
@@ -287,6 +306,31 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
             if let Some(button) = buttons_ref.borrow_mut().remove(&id) {
                 container_ref.remove(&button);
             }
+        }
+    });
+
+    // IPC: toggle focused-only mode when `ferritebar msg taskbar-focus` is called
+    let (ipc_tx, ipc_rx) = mpsc::channel::<()>(4);
+    let mut ipc_sub = crate::ipc::subscribe();
+    crate::spawn(async move {
+        loop {
+            match ipc_sub.recv().await {
+                Ok(msg) if msg == "taskbar-focus" => { let _ = ipc_tx.send(()).await; }
+                Ok(_) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+    let buttons_ipc = buttons.clone();
+    let focused_only_ipc = focused_only.clone();
+    let focused_id_ipc = focused_id.clone();
+    super::recv_on_main_thread(ipc_rx, move |_| {
+        let new_state = !focused_only_ipc.get();
+        focused_only_ipc.set(new_state);
+        let cur = focused_id_ipc.get();
+        for (id, btn) in buttons_ipc.borrow().iter() {
+            btn.set_visible(!new_state || Some(*id) == cur);
         }
     });
 
@@ -331,10 +375,36 @@ struct HandleState {
     initial_done: bool,
 }
 
+/// Poll a file descriptor for readability with a timeout.
+///
+/// Uses a bare `extern "C"` declaration to avoid adding `nix`/`libc` as
+/// dependencies. Returns `true` if the fd is readable before the timeout.
+fn poll_readable(raw_fd: i32, timeout_ms: i32) -> bool {
+    use std::os::raw::{c_int, c_short};
+
+    #[repr(C)]
+    struct PollFd {
+        fd: c_int,
+        events: c_short,
+        revents: c_short,
+    }
+
+    extern "C" {
+        // nfds_t is `unsigned long` on Linux
+        fn poll(fds: *mut PollFd, nfds: u64, timeout: c_int) -> c_int;
+    }
+
+    const POLLIN: c_short = 0x001;
+    let mut pfd = PollFd { fd: raw_fd, events: POLLIN, revents: 0 };
+    unsafe { poll(&mut pfd, 1, timeout_ms) > 0 }
+}
+
 fn run_toplevel_watcher(
     event_tx: mpsc::Sender<ToplevelEvent>,
     request_rx: mpsc::Receiver<ToplevelRequest>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use std::os::unix::io::{AsFd, AsRawFd};
+
     let conn = Connection::connect_to_env()?;
     let (globals, mut queue) = registry_queue_init::<WaylandState>(&conn)?;
     let qh = queue.handle();
@@ -356,7 +426,19 @@ fn run_toplevel_watcher(
     // Initial roundtrip to get existing toplevels
     queue.roundtrip(&mut state)?;
 
-    // Event loop
+    let raw_fd = conn.as_fd().as_raw_fd();
+
+    // Event loop.
+    //
+    // Previously used `blocking_dispatch` which blocks indefinitely until the
+    // next Wayland event. Any `Activate` request sent from the GTK thread
+    // would sit in `request_rx` unprocessed until an unrelated Wayland event
+    // happened to wake the thread — making clicks appear broken or randomly
+    // delayed.
+    //
+    // Now we use `prepare_read` + `poll` with a 50 ms timeout so that
+    // `request_rx` is drained promptly on every loop iteration regardless of
+    // Wayland traffic.
     loop {
         // Process any pending requests from GTK thread (non-blocking)
         while let Ok(request) = state.request_rx.try_recv() {
@@ -376,11 +458,25 @@ fn run_toplevel_watcher(
             }
         }
 
-        // Flush outgoing requests
+        // Flush any outgoing requests (activate, close) to the compositor.
         conn.flush()?;
 
-        // Block for next Wayland event (with timeout for request processing)
-        queue.blocking_dispatch(&mut state)?;
+        // Dispatch events that are already buffered in the queue.
+        queue.dispatch_pending(&mut state)?;
+
+        // Prepare to read more events from the socket, then poll with a
+        // timeout so we can service `request_rx` even when the compositor is
+        // quiet.  If `prepare_read` returns None there are already-queued
+        // events ready; `dispatch_pending` above will handle them next iteration.
+        if let Some(guard) = queue.prepare_read() {
+            if poll_readable(raw_fd, 50) {
+                guard.read()?;
+            }
+            // Timeout — guard dropped without reading, loop back to try_recv.
+        }
+
+        // Dispatch anything just read.
+        queue.dispatch_pending(&mut state)?;
     }
 }
 

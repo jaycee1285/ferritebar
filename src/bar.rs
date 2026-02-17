@@ -24,6 +24,8 @@ impl Bar {
         window.set_layer(gtk_layer_shell::Layer::Top);
         window.set_namespace(Some("ferritebar"));
         window.auto_exclusive_zone_enable();
+        // Allow popups (power menu, tooltips) to grab keyboard when needed
+        window.set_keyboard_mode(gtk_layer_shell::KeyboardMode::OnDemand);
 
         // Anchor to edges based on position
         match config.position {

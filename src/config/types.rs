@@ -97,6 +97,8 @@ pub enum ModuleConfig {
     Memory(MemoryConfig),
     #[serde(rename = "swap")]
     Swap(SwapConfig),
+    #[serde(rename = "workspaces")]
+    Workspaces(WorkspacesConfig),
     #[serde(rename = "tray")]
     Tray(TrayConfig),
     #[serde(rename = "taskbar")]
@@ -234,6 +236,31 @@ fn default_swap_interval() -> u64 {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct WorkspacesConfig {
+    #[serde(default = "default_workspaces_format")]
+    pub format: String,
+    #[serde(default)]
+    pub show_hidden: bool,
+    #[serde(default = "default_workspaces_scroll")]
+    pub scroll: bool,
+    pub sync_command: Option<String>,
+    #[serde(default = "default_workspaces_sync_only_active")]
+    pub sync_only_active: bool,
+}
+
+fn default_workspaces_format() -> String {
+    "{index}".to_string()
+}
+
+fn default_workspaces_scroll() -> bool {
+    true
+}
+
+fn default_workspaces_sync_only_active() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize)]
 pub struct TrayConfig {
     #[serde(default = "default_tray_icon_size")]
     pub icon_size: i32,
@@ -287,6 +314,10 @@ pub struct PowerConfig {
     #[serde(default = "default_shutdown_cmd")]
     pub shutdown_cmd: String,
     pub logout_cmd: Option<String>,
+    /// Hide the button visually but keep the IPC handler active so
+    /// `ferritebar msg power` can still trigger the popover.
+    #[serde(default)]
+    pub hidden: bool,
 }
 
 fn default_power_icon() -> String {

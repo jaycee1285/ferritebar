@@ -1,4 +1,5 @@
 use gtk::prelude::*;
+use tokio::sync::mpsc;
 use tracing::debug;
 
 use crate::config::types::PowerConfig;
@@ -95,6 +96,34 @@ pub fn build(config: &PowerConfig) -> gtk::Widget {
         }
     });
     container.add_controller(gesture);
+
+    // IPC: toggle popover when `ferritebar msg power` is called
+    let (ipc_tx, ipc_rx) = mpsc::channel::<()>(4);
+    let mut ipc_sub = crate::ipc::subscribe();
+    crate::spawn(async move {
+        loop {
+            match ipc_sub.recv().await {
+                Ok(msg) if msg == "power" => { let _ = ipc_tx.send(()).await; }
+                Ok(_) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+    let popover_ipc = popover.clone();
+    super::recv_on_main_thread(ipc_rx, move |_| {
+        if popover_ipc.is_visible() {
+            popover_ipc.popdown();
+        } else {
+            popover_ipc.popup();
+        }
+    });
+
+    // If hidden, make the button invisible but keep it realized so the
+    // popover (which needs a mapped parent) can still popup via IPC.
+    if config.hidden {
+        container.add_css_class("power-hidden");
+    }
 
     debug!("Power module created");
     container.upcast()

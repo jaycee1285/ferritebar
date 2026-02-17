@@ -29,6 +29,8 @@ pub fn activate(app: &gtk::Application) {
 
     info!("Ferritebar starting");
 
+    crate::ipc::start_listener();
+
     // Log font availability for debugging (via fontconfig)
     crate::spawn(async {
         if let Ok(output) = tokio::process::Command::new("fc-list")

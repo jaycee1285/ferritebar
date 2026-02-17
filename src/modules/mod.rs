@@ -9,6 +9,7 @@ pub mod network;
 pub mod power;
 pub mod tray;
 pub mod taskbar;
+pub mod workspaces;
 
 use gtk::prelude::*;
 use tracing::debug;
@@ -101,6 +102,7 @@ fn build_module(config: &ModuleConfig, colors: &ThemeColors) -> Option<gtk::Widg
         ModuleConfig::Network(cfg) => Some(network::build(cfg)),
         ModuleConfig::Memory(cfg) => Some(memory::build(cfg, colors)),
         ModuleConfig::Swap(cfg) => Some(swap::build(cfg, colors)),
+        ModuleConfig::Workspaces(cfg) => Some(workspaces::build(cfg)),
         ModuleConfig::Power(cfg) => Some(power::build(cfg)),
         ModuleConfig::Script(cfg) => Some(script::build(cfg)),
         ModuleConfig::Tray(cfg) => Some(tray::build(cfg)),

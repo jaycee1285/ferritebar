@@ -34,7 +34,7 @@ elif [[ -f "$NIX_RESULT/bin/.${APP_NAME}-wrapped_" ]]; then
 else
   cp "$NIX_RESULT/bin/${APP_NAME}" "$STAGING/bin/${APP_NAME}"
 fi
-chmod +x "$STAGING/bin/${APP_NAME}"
+chmod u+wx "$STAGING/bin/${APP_NAME}"
 
 # Strip Nix store paths for cross-machine portability.
 # Building via `nix build` bakes this machine's /nix/store paths into the

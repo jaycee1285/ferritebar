@@ -215,6 +215,25 @@ pub fn build(config: &NetworkConfig) -> gtk::Widget {
             });
         });
         container.add_controller(gesture);
+
+        // IPC: fire on_click when `ferritebar msg network` is called
+        let cmd_ipc = cmd.clone();
+        let mut ipc_rx = crate::ipc::subscribe();
+        crate::spawn(async move {
+            loop {
+                match ipc_rx.recv().await {
+                    Ok(msg) if msg == "network" => {
+                        let _ = tokio::process::Command::new("sh")
+                            .arg("-lc")
+                            .arg(&cmd_ipc)
+                            .spawn();
+                    }
+                    Ok(_) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
     }
 
     let format = config.format.clone();

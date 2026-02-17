@@ -10,6 +10,14 @@ icon_theme = "YAMIS"
 # error_color = "#f87171"
 
 [[modules.left]]
+type = "workspaces"
+format = "{index}"
+show_hidden = false
+scroll = true
+sync_command = "labwc-niri sync {index}"
+sync_only_active = true
+
+[[modules.left]]
 type = "memory"
 format = "{icon}"
 interval = 3
@@ -70,3 +78,4 @@ lock_cmd = "swaylock"
 suspend_cmd = "systemctl suspend"
 reboot_cmd = "systemctl reboot"
 shutdown_cmd = "systemctl poweroff"
+# hidden = true  # Hide the button but keep IPC active (ferritebar msg power)
