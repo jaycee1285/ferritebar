@@ -215,7 +215,7 @@ window {{
     margin: 0 1px;
 }}
 
-label.module-label {{
+.module label.module-label {{
     color: {fg};
     font-family: "Font Awesome 7 Free Solid", "Font Awesome 7 Free", "{font}", sans-serif;
     font-size: {font_size}px;
