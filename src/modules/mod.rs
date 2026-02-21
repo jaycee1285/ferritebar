@@ -14,7 +14,7 @@ use gtk::prelude::*;
 use tracing::debug;
 
 use crate::bar::Bar;
-use crate::config::types::{ModuleConfig, ModuleLayout};
+use crate::config::types::{ModuleConfig, ModuleLayout, Position};
 use crate::theme::ThemeColors;
 use std::cell::{Cell, RefCell};
 
@@ -93,7 +93,14 @@ fn ensure_tooltip_state(widget: &gtk::Widget) -> &TooltipState {
 }
 
 /// Create a module widget from config and append to appropriate container
-fn build_module(config: &ModuleConfig, colors: &ThemeColors) -> Option<gtk::Widget> {
+fn build_module(
+    config: &ModuleConfig,
+    colors: &ThemeColors,
+    app: &gtk::Application,
+    bar_position: Position,
+    bar_height: u32,
+    bar_edge_margin: i32,
+) -> Option<gtk::Widget> {
     match config {
         ModuleConfig::Clock(cfg) => Some(clock::build(cfg)),
         ModuleConfig::Battery(cfg) => Some(battery::build(cfg)),
@@ -103,27 +110,31 @@ fn build_module(config: &ModuleConfig, colors: &ThemeColors) -> Option<gtk::Widg
         ModuleConfig::Swap(cfg) => Some(swap::build(cfg, colors)),
         ModuleConfig::Workspaces(cfg) => Some(workspaces::build(cfg)),
         ModuleConfig::Script(cfg) => Some(script::build(cfg)),
-        ModuleConfig::Tray(cfg) => Some(tray::build(cfg)),
+        ModuleConfig::Tray(cfg) => Some(tray::build(cfg, app, bar_position, bar_height, bar_edge_margin)),
         ModuleConfig::Taskbar(cfg) => Some(taskbar::build(cfg)),
     }
 }
 
 /// Populate bar containers with modules from config
-pub fn populate_bar(bar: &Bar, layout: &ModuleLayout, colors: &ThemeColors) {
+pub fn populate_bar(bar: &Bar, layout: &ModuleLayout, colors: &ThemeColors, app: &gtk::Application) {
+    let pos = bar.position();
+    let height = bar.height();
+    let edge_margin = bar.edge_margin();
+
     for module_cfg in &layout.left {
-        if let Some(widget) = build_module(module_cfg, colors) {
+        if let Some(widget) = build_module(module_cfg, colors, app, pos, height, edge_margin) {
             bar.start_container().append(&widget);
         }
     }
 
     for module_cfg in &layout.center {
-        if let Some(widget) = build_module(module_cfg, colors) {
+        if let Some(widget) = build_module(module_cfg, colors, app, pos, height, edge_margin) {
             bar.center_container().append(&widget);
         }
     }
 
     for module_cfg in &layout.right {
-        if let Some(widget) = build_module(module_cfg, colors) {
+        if let Some(widget) = build_module(module_cfg, colors, app, pos, height, edge_margin) {
             bar.end_container().append(&widget);
         }
     }

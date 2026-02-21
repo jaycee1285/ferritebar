@@ -308,6 +308,50 @@ window {{
     color: {selected_fg};
 }}
 
+.tray-menu {{
+    background-color: alpha({bg}, 0.85);
+    border: 1px solid alpha({fg}, 0.2);
+    border-radius: 8px;
+    padding: 4px;
+}}
+
+.tray-menu button {{
+    background: transparent;
+    border: none;
+    color: {fg};
+    padding: 6px 12px;
+    border-radius: 4px;
+    min-height: 0;
+}}
+
+.tray-menu button:hover {{
+    background-color: alpha({selected_bg}, 0.3);
+}}
+
+.tray-menu button:disabled {{
+    color: alpha({fg}, 0.4);
+}}
+
+.tray-menu separator {{
+    margin: 2px 4px;
+    min-height: 1px;
+    background-color: alpha({fg}, 0.15);
+}}
+
+.tray-menu .submenu-header {{
+    color: alpha({fg}, 0.6);
+    padding: 4px 12px 2px 12px;
+    font-size: 0.9em;
+}}
+
+.tray-menu .submenu-item {{
+    padding-left: 24px;
+}}
+
+.tray-menu .toggle-on {{
+    font-weight: bold;
+}}
+
 .connected label.module-label {{
     color: {success};
 }}

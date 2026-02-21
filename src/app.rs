@@ -82,7 +82,7 @@ pub fn activate(app: &gtk::Application) {
     let bar = Bar::new(app, &cfg.bar);
 
     // Populate modules
-    modules::populate_bar(&bar, &cfg.modules, &colors);
+    modules::populate_bar(&bar, &cfg.modules, &colors, app);
 
     // Standalone power menu (IPC-only, not a bar module)
     crate::power_menu::setup(app, &cfg.power, bar.window());
@@ -93,6 +93,7 @@ pub fn activate(app: &gtk::Application) {
     let reload_rx = config::watch_config(config_path.clone());
 
     let bar_ref = bar;
+    let app_ref = app.clone();
     modules::recv_on_main_thread(reload_rx, move |()| {
         info!("Reloading config...");
 
@@ -111,7 +112,7 @@ pub fn activate(app: &gtk::Application) {
 
         // Clear and rebuild modules
         bar_ref.clear();
-        modules::populate_bar(&bar_ref, &cfg.modules, &colors);
+        modules::populate_bar(&bar_ref, &cfg.modules, &colors, &app_ref);
 
         info!("Config reloaded");
     });

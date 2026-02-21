@@ -9,6 +9,9 @@ pub struct Bar {
     start: gtk::Box,
     center: gtk::Box,
     end: gtk::Box,
+    position: Position,
+    height: u32,
+    edge_margin: i32,
 }
 
 impl Bar {
@@ -68,11 +71,19 @@ impl Bar {
             config.position, config.height
         );
 
+        let edge_margin = match config.position {
+            Position::Top => config.margin.top,
+            Position::Bottom => config.margin.bottom,
+        };
+
         Self {
             window,
             start,
             center,
             end,
+            position: config.position,
+            height: config.height,
+            edge_margin,
         }
     }
 
@@ -104,6 +115,18 @@ impl Bar {
 
     pub fn window(&self) -> &gtk::ApplicationWindow {
         &self.window
+    }
+
+    pub fn position(&self) -> Position {
+        self.position
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn edge_margin(&self) -> i32 {
+        self.edge_margin
     }
 
     pub fn show(&self) {
