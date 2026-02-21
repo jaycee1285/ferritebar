@@ -221,6 +221,7 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
     let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
     container.add_css_class("module");
     container.add_css_class("taskbar");
+    container.set_visible(false);
 
     // Track buttons by toplevel ID
     let buttons: std::rc::Rc<std::cell::RefCell<HashMap<u32, gtk::Button>>> =
@@ -278,6 +279,7 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
 
             container_ref.append(&button);
             buttons_ref.borrow_mut().insert(info.id, button);
+            container_ref.set_visible(true);
         }
         ToplevelEvent::Update(info) => {
             if let Some(button) = buttons_ref.borrow().get(&info.id) {
@@ -305,6 +307,9 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
         ToplevelEvent::Remove(id) => {
             if let Some(button) = buttons_ref.borrow_mut().remove(&id) {
                 container_ref.remove(&button);
+            }
+            if buttons_ref.borrow().is_empty() {
+                container_ref.set_visible(false);
             }
         }
     });

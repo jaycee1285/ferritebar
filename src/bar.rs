@@ -102,6 +102,10 @@ impl Bar {
         debug!("Cleared all bar modules");
     }
 
+    pub fn window(&self) -> &gtk::ApplicationWindow {
+        &self.window
+    }
+
     pub fn show(&self) {
         self.window.present();
     }

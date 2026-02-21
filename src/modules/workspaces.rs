@@ -97,6 +97,9 @@ pub fn build(config: &WorkspacesConfig) -> gtk::Widget {
                 container_ref.remove(&child);
             }
 
+            // Auto-hide when only 1 workspace exists
+            container_ref.set_visible(visible.len() > 1);
+
             for info in visible {
                 let label_text = format_label(&format, &info);
                 let label = gtk::Label::new(Some(&label_text));

@@ -8,6 +8,8 @@ pub struct Config {
     pub theme: ThemeConfig,
     #[serde(default)]
     pub modules: ModuleLayout,
+    #[serde(default)]
+    pub power: PowerConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,8 +105,6 @@ pub enum ModuleConfig {
     Tray(TrayConfig),
     #[serde(rename = "taskbar")]
     Taskbar(TaskbarConfig),
-    #[serde(rename = "power")]
-    Power(PowerConfig),
     #[serde(rename = "script")]
     Script(ScriptConfig),
 }
@@ -151,7 +151,7 @@ fn default_battery_path() -> String {
 }
 
 fn default_battery_interval() -> u64 {
-    30
+    60
 }
 
 #[derive(Debug, Deserialize)]
@@ -184,7 +184,7 @@ fn default_network_format() -> String {
 }
 
 fn default_network_interval() -> u64 {
-    10
+    60
 }
 
 #[derive(Debug, Deserialize)]
@@ -204,7 +204,7 @@ fn default_memory_format() -> String {
 }
 
 fn default_memory_interval() -> u64 {
-    3
+    15
 }
 
 fn default_bar_width() -> i32 {
@@ -232,7 +232,7 @@ fn default_swap_format() -> String {
 }
 
 fn default_swap_interval() -> u64 {
-    5
+    15
 }
 
 #[derive(Debug, Deserialize)]
@@ -303,8 +303,6 @@ fn default_taskbar_icon_size() -> i32 {
 
 #[derive(Debug, Deserialize)]
 pub struct PowerConfig {
-    #[serde(default = "default_power_icon")]
-    pub icon: String,
     #[serde(default = "default_lock_cmd")]
     pub lock_cmd: String,
     #[serde(default = "default_suspend_cmd")]
@@ -314,14 +312,18 @@ pub struct PowerConfig {
     #[serde(default = "default_shutdown_cmd")]
     pub shutdown_cmd: String,
     pub logout_cmd: Option<String>,
-    /// Hide the button visually but keep the IPC handler active so
-    /// `ferritebar msg power` can still trigger the popover.
-    #[serde(default)]
-    pub hidden: bool,
 }
 
-fn default_power_icon() -> String {
-    "\u{23FB}".to_string()
+impl Default for PowerConfig {
+    fn default() -> Self {
+        Self {
+            lock_cmd: default_lock_cmd(),
+            suspend_cmd: default_suspend_cmd(),
+            reboot_cmd: default_reboot_cmd(),
+            shutdown_cmd: default_shutdown_cmd(),
+            logout_cmd: None,
+        }
+    }
 }
 
 fn default_lock_cmd() -> String {
@@ -353,7 +355,7 @@ pub struct ScriptConfig {
 }
 
 fn default_script_interval() -> u64 {
-    30
+    60
 }
 
 fn default_return_type() -> String {

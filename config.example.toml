@@ -71,11 +71,11 @@ type = "clock"
 format = "%I:%M %p"
 tooltip_format = "%A, %B %d, %Y"
 
-[[modules.right]]
-type = "power"
-icon = "\u23FB"
+# Power menu — standalone overlay triggered by `ferritebar msg power`
+# No bar module; bind to a key in your compositor (e.g. mod4+Escape)
+[power]
 lock_cmd = "swaylock"
 suspend_cmd = "systemctl suspend"
 reboot_cmd = "systemctl reboot"
 shutdown_cmd = "systemctl poweroff"
-# hidden = true  # Hide the button but keep IPC active (ferritebar msg power)
+# logout_cmd = "loginctl terminate-user $USER"

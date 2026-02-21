@@ -3,6 +3,7 @@ mod bar;
 mod config;
 mod ipc;
 mod modules;
+mod power_menu;
 mod settings;
 mod theme;
 mod widgets;

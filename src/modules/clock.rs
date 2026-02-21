@@ -17,7 +17,7 @@ pub fn build(config: &ClockConfig) -> gtk::Widget {
 
     // Spawn controller
     crate::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(1000));
         let mut prev_display = String::new();
         let mut display_buf = String::with_capacity(32);
         let mut tooltip_buf = String::with_capacity(64);

@@ -284,18 +284,6 @@ window {{
     opacity: 0.6;
 }}
 
-.power {{
-    padding: 0 6px;
-}}
-
-.power-icon {{
-    color: {fg};
-}}
-
-.power:hover .power-icon {{
-    color: {error};
-}}
-
 .power-popover {{
     background-color: alpha({bg}, 0.85);
     border: 1px solid alpha({fg}, 0.2);
@@ -315,11 +303,9 @@ window {{
     background-color: alpha({selected_bg}, 0.3);
 }}
 
-.power-hidden {{
-    opacity: 0;
-    min-width: 0;
-    padding: 0;
-    margin: 0;
+.power-popover button.active {{
+    background-color: {selected_bg};
+    color: {selected_fg};
 }}
 
 .connected label.module-label {{

@@ -84,6 +84,9 @@ pub fn activate(app: &gtk::Application) {
     // Populate modules
     modules::populate_bar(&bar, &cfg.modules, &colors);
 
+    // Standalone power menu (IPC-only, not a bar module)
+    crate::power_menu::setup(app, &cfg.power, bar.window());
+
     bar.show();
 
     // Start config file watcher for hot-reload

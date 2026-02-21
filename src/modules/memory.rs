@@ -81,6 +81,26 @@ pub fn build(config: &MemoryConfig, colors: &ThemeColors) -> gtk::Widget {
         super::set_tooltip_text(container_ref.clone(), Some(&tooltip_buf));
     });
 
+    // IPC: toggle visibility when `ferritebar msg memory-toggle` is called
+    let (ipc_tx, ipc_rx) = mpsc::channel::<()>(4);
+    let mut ipc_sub = crate::ipc::subscribe();
+    crate::spawn(async move {
+        loop {
+            match ipc_sub.recv().await {
+                Ok(msg) if msg == "memory-toggle" => {
+                    let _ = ipc_tx.send(()).await;
+                }
+                Ok(_) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+    let container_ipc = container.clone();
+    super::recv_on_main_thread(ipc_rx, move |_| {
+        container_ipc.set_visible(!container_ipc.is_visible());
+    });
+
     debug!("Memory module created");
     container.upcast()
 }

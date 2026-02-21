@@ -6,7 +6,6 @@ pub mod script;
 pub mod battery;
 pub mod audio;
 pub mod network;
-pub mod power;
 pub mod tray;
 pub mod taskbar;
 pub mod workspaces;
@@ -103,7 +102,6 @@ fn build_module(config: &ModuleConfig, colors: &ThemeColors) -> Option<gtk::Widg
         ModuleConfig::Memory(cfg) => Some(memory::build(cfg, colors)),
         ModuleConfig::Swap(cfg) => Some(swap::build(cfg, colors)),
         ModuleConfig::Workspaces(cfg) => Some(workspaces::build(cfg)),
-        ModuleConfig::Power(cfg) => Some(power::build(cfg)),
         ModuleConfig::Script(cfg) => Some(script::build(cfg)),
         ModuleConfig::Tray(cfg) => Some(tray::build(cfg)),
         ModuleConfig::Taskbar(cfg) => Some(taskbar::build(cfg)),
