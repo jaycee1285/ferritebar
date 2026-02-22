@@ -247,6 +247,8 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
             if info.focused {
                 button.add_css_class("active");
                 focused_id_ref.set(Some(info.id));
+            } else {
+                button.add_css_class("inactive");
             }
             // Apply focused-only visibility to the new button
             if focused_only_ref.get() {
@@ -291,9 +293,11 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
 
                 if info.focused {
                     button.add_css_class("active");
+                    button.remove_css_class("inactive");
                     focused_id_ref.set(Some(info.id));
                 } else {
                     button.remove_css_class("active");
+                    button.add_css_class("inactive");
                 }
             }
             // In focused-only mode, update visibility for all buttons

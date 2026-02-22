@@ -202,7 +202,7 @@ pub fn generate_css(colors: &ThemeColors, bar_height: u32, font: &str, font_size
         r#"
 window {{
     background-color: transparent;
-    color: {fg};
+    color: {selected_bg};
 }}
 
 .bar-container {{
@@ -216,12 +216,12 @@ window {{
 }}
 
 .module label.module-label {{
-    color: {fg};
+    color: {selected_bg};
     font-family: "Font Awesome 7 Free Solid", "Font Awesome 7 Free", "{font}", sans-serif;
     font-size: {font_size}px;
 }}
 
-.clock label.module-label, .taskbar-button {{
+.clock label.module-label {{
     font-family: "{font}", sans-serif;
 }}
 
@@ -244,8 +244,12 @@ window {{
     border-radius: 4px;
     border: none;
     background: transparent;
-    color: {fg};
+    font-family: "{font}", sans-serif;
     min-height: {bar_h}px;
+}}
+
+.taskbar-button.inactive {{
+    color: {selected_bg};
 }}
 
 .workspace-button {{
@@ -365,7 +369,7 @@ window {{
 }}
 
 .charging label.module-label {{
-    color: {success};
+    color: {selected_bg};
 }}
 
 .low label.module-label {{
@@ -384,22 +388,23 @@ tooltip, tooltip.background {{
 }}
 
 tooltip label {{
+    color: {selected_bg};
     text-transform: none;
     font-variant: normal;
     font-family: "{font}", sans-serif;
-    font-size: {font_size}px;
+    font-size: {tooltip_font_size}px;
 }}
 
 .ferrite-tooltip {{
     text-transform: none;
     font-variant: normal;
     font-family: "{font}", sans-serif;
-    font-size: {font_size}px;
-    color: {fg};
+    font-size: {tooltip_font_size}px;
+    color: {selected_bg};
 }}
 "#,
         bg = colors.bg,
-        fg = colors.fg,
+        fg = colors.selected_fg,
         selected_bg = colors.selected_bg,
         selected_fg = colors.selected_fg,
         success = colors.success,
@@ -407,6 +412,7 @@ tooltip label {{
         error = colors.error,
         font = font,
         font_size = font_size_override.unwrap_or((bar_height as f64 * 0.55).max(14.0) as u32),
+        tooltip_font_size = (font_size_override.unwrap_or((bar_height as f64 * 0.55).max(14.0) as u32) as f64 * 0.75) as u32,
         bar_h = bar_height,
     )
 }
