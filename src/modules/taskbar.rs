@@ -239,9 +239,8 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
     super::recv_on_main_thread(event_rx, move |event| match event {
         ToplevelEvent::New(info) => {
             let button = gtk::Button::new();
-            let content = make_button_content(
-                &info.app_id, &info.title, &display, icon_size, max_title,
-            );
+            let content =
+                make_button_content(&info.app_id, &info.title, &display, icon_size, max_title);
             button.set_child(Some(&content));
             button.add_css_class("taskbar-button");
             if info.focused {
@@ -286,7 +285,12 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
         ToplevelEvent::Update(info) => {
             if let Some(button) = buttons_ref.borrow().get(&info.id) {
                 update_button_content(
-                    button, &info.app_id, &info.title, &display, icon_size, max_title,
+                    button,
+                    &info.app_id,
+                    &info.title,
+                    &display,
+                    icon_size,
+                    max_title,
                 );
                 let tooltip = format!("{} - {}", info.app_id, info.title);
                 super::set_tooltip_text(button.clone(), Some(&tooltip));
@@ -324,7 +328,9 @@ pub fn build(config: &TaskbarConfig) -> gtk::Widget {
     crate::spawn(async move {
         loop {
             match ipc_sub.recv().await {
-                Ok(msg) if msg == "taskbar-focus" => { let _ = ipc_tx.send(()).await; }
+                Ok(msg) if msg == "taskbar-focus" => {
+                    let _ = ipc_tx.send(()).await;
+                }
                 Ok(_) => {}
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -360,7 +366,7 @@ fn truncate_title(title: &str, max_len: usize) -> std::borrow::Cow<'_, str> {
 use wayland_client::globals::{registry_queue_init, GlobalListContents};
 use wayland_client::protocol::wl_registry;
 use wayland_client::protocol::wl_seat::WlSeat;
-use wayland_client::{Connection, Dispatch, QueueHandle, delegate_noop};
+use wayland_client::{delegate_noop, Connection, Dispatch, QueueHandle};
 use wayland_protocols_wlr::foreign_toplevel::v1::client::{
     zwlr_foreign_toplevel_handle_v1::{self, ZwlrForeignToplevelHandleV1},
     zwlr_foreign_toplevel_manager_v1::{self, ZwlrForeignToplevelManagerV1},
@@ -404,7 +410,11 @@ fn poll_readable(raw_fd: i32, timeout_ms: i32) -> bool {
     }
 
     const POLLIN: c_short = 0x001;
-    let mut pfd = PollFd { fd: raw_fd, events: POLLIN, revents: 0 };
+    let mut pfd = PollFd {
+        fd: raw_fd,
+        events: POLLIN,
+        revents: 0,
+    };
     unsafe { poll(&mut pfd, 1, timeout_ms) > 0 }
 }
 
@@ -585,29 +595,20 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for WaylandState {
                 let focused = if wl_state.len() >= 4 {
                     // Parse u32 array from raw bytes
                     (0..wl_state.len() / 4).any(|i| {
-                        let bytes: [u8; 4] = wl_state[i * 4..i * 4 + 4]
-                            .try_into()
-                            .unwrap_or([0; 4]);
+                        let bytes: [u8; 4] =
+                            wl_state[i * 4..i * 4 + 4].try_into().unwrap_or([0; 4]);
                         u32::from_le_bytes(bytes) == STATE_ACTIVATED
                     })
                 } else {
                     false
                 };
 
-                if let Some(idx) = state
-                    .handles
-                    .iter()
-                    .position(|h| h.handle == *handle)
-                {
+                if let Some(idx) = state.handles.iter().position(|h| h.handle == *handle) {
                     state.handles[idx].pending_focused = focused;
                 }
             }
             zwlr_foreign_toplevel_handle_v1::Event::Done => {
-                if let Some(idx) = state
-                    .handles
-                    .iter()
-                    .position(|h| h.handle == *handle)
-                {
+                if let Some(idx) = state.handles.iter().position(|h| h.handle == *handle) {
                     let hs = &mut state.handles[idx];
                     let info = ToplevelInfo {
                         id: hs.id,
@@ -629,11 +630,7 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for WaylandState {
                 }
             }
             zwlr_foreign_toplevel_handle_v1::Event::Closed => {
-                if let Some(idx) = state
-                    .handles
-                    .iter()
-                    .position(|h| h.handle == *handle)
-                {
+                if let Some(idx) = state.handles.iter().position(|h| h.handle == *handle) {
                     let id = state.handles[idx].id;
                     state.handles.remove(idx);
                     let _ = state.event_tx.blocking_send(ToplevelEvent::Remove(id));

@@ -42,7 +42,13 @@ async fn read_network() -> NetworkData {
 
 async fn try_nmcli() -> Option<NetworkData> {
     let output = tokio::process::Command::new("nmcli")
-        .args(["-t", "-f", "TYPE,STATE,CONNECTION,DEVICE", "device", "status"])
+        .args([
+            "-t",
+            "-f",
+            "TYPE,STATE,CONNECTION,DEVICE",
+            "device",
+            "status",
+        ])
         .output()
         .await
         .ok()?;
@@ -96,7 +102,16 @@ async fn try_nmcli() -> Option<NetworkData> {
 
 async fn get_wifi_ssid(device: &str) -> Option<Box<str>> {
     let output = tokio::process::Command::new("nmcli")
-        .args(["-t", "-f", "active,ssid", "dev", "wifi", "list", "ifname", device])
+        .args([
+            "-t",
+            "-f",
+            "active,ssid",
+            "dev",
+            "wifi",
+            "list",
+            "ifname",
+            device,
+        ])
         .output()
         .await
         .ok()?;
@@ -123,8 +138,7 @@ async fn try_sysfs() -> Option<NetworkData> {
         if let Ok(state) = std::fs::read_to_string(entry.path().join("operstate")) {
             if state.trim() == "up" {
                 // Detect wifi vs ethernet by checking for wireless subdir
-                let is_wifi = entry.path().join("wireless").exists()
-                    || name.starts_with('w');
+                let is_wifi = entry.path().join("wireless").exists() || name.starts_with('w');
                 let kind = if is_wifi {
                     NetKind::Wifi
                 } else {
@@ -170,9 +184,9 @@ async fn get_iw_ssid(interface: &str) -> Option<Box<str>> {
 
 fn network_icon(data: &NetworkData) -> &'static str {
     match data.kind {
-        NetKind::Wifi if data.connected => "\u{f1eb}",     // fa-wifi
+        NetKind::Wifi if data.connected => "\u{f1eb}", // fa-wifi
         NetKind::Ethernet if data.connected => "\u{f796}", // fa-ethernet
-        _ => "\u{f071}",                                    // fa-triangle-exclamation
+        _ => "\u{f071}",                               // fa-triangle-exclamation
     }
 }
 
@@ -182,8 +196,7 @@ pub fn build(config: &NetworkConfig) -> gtk::Widget {
     let interval_secs = config.interval;
 
     crate::spawn(async move {
-        let mut interval =
-            tokio::time::interval(tokio::time::Duration::from_secs(interval_secs));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval_secs));
         loop {
             interval.tick().await;
             let data = read_network().await;

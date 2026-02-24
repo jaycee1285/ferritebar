@@ -67,9 +67,7 @@ pub fn watch_config(path: PathBuf) -> mpsc::Receiver<()> {
             match watcher {
                 Ok(ref mut w) => {
                     // Watch the parent directory (handles editor atomic saves)
-                    let parent = watch_path
-                        .parent()
-                        .unwrap_or_else(|| Path::new("."));
+                    let parent = watch_path.parent().unwrap_or_else(|| Path::new("."));
                     if let Err(e) = w.watch(parent, RecursiveMode::NonRecursive) {
                         error!("Failed to watch config directory: {e}");
                         return;
@@ -97,9 +95,9 @@ pub fn watch_config(path: PathBuf) -> mpsc::Receiver<()> {
             // Drain rapid follow-up events (debounce 200ms)
             loop {
                 match tokio::time::timeout(Duration::from_millis(200), notify_rx.recv()).await {
-                    Ok(Some(())) => continue,  // More events, keep waiting
-                    Ok(None) => return,         // Channel closed
-                    Err(_) => break,            // Timeout - debounce complete
+                    Ok(Some(())) => continue, // More events, keep waiting
+                    Ok(None) => return,       // Channel closed
+                    Err(_) => break,          // Timeout - debounce complete
                 }
             }
 

@@ -119,7 +119,10 @@ pub fn setup(app: &gtk::Application, config: &PowerConfig, bar_window: &gtk::App
     for (i, btn) in buttons.iter().enumerate() {
         let d = dismiss.clone();
         let cmd = commands[i].clone();
-        btn.connect_clicked(move |_| { d(); exec_command(&cmd); });
+        btn.connect_clicked(move |_| {
+            d();
+            exec_command(&cmd);
+        });
     }
 
     // Keyboard navigation: Up/Down/Tab move selection, Enter activates, Escape dismisses
@@ -137,23 +140,33 @@ pub fn setup(app: &gtk::Application, config: &PowerConfig, bar_window: &gtk::App
             }
             // Number keys: 1=Lock, 2=Suspend, 3=Reboot, 4=Shutdown, 5=Logout
             gtk::gdk::Key::_1 | gtk::gdk::Key::KP_1 => {
-                if count > 0 { btns[0].emit_clicked(); }
+                if count > 0 {
+                    btns[0].emit_clicked();
+                }
                 return glib::Propagation::Stop;
             }
             gtk::gdk::Key::_2 | gtk::gdk::Key::KP_2 => {
-                if count > 1 { btns[1].emit_clicked(); }
+                if count > 1 {
+                    btns[1].emit_clicked();
+                }
                 return glib::Propagation::Stop;
             }
             gtk::gdk::Key::_3 | gtk::gdk::Key::KP_3 => {
-                if count > 2 { btns[2].emit_clicked(); }
+                if count > 2 {
+                    btns[2].emit_clicked();
+                }
                 return glib::Propagation::Stop;
             }
             gtk::gdk::Key::_4 | gtk::gdk::Key::KP_4 => {
-                if count > 3 { btns[3].emit_clicked(); }
+                if count > 3 {
+                    btns[3].emit_clicked();
+                }
                 return glib::Propagation::Stop;
             }
             gtk::gdk::Key::_5 | gtk::gdk::Key::KP_5 => {
-                if count > 4 { btns[4].emit_clicked(); }
+                if count > 4 {
+                    btns[4].emit_clicked();
+                }
                 return glib::Propagation::Stop;
             }
             // Arrow/Tab navigation still available
@@ -188,7 +201,9 @@ pub fn setup(app: &gtk::Application, config: &PowerConfig, bar_window: &gtk::App
     crate::spawn(async move {
         loop {
             match ipc_sub.recv().await {
-                Ok(msg) if msg == "power" => { let _ = ipc_tx.send(()).await; }
+                Ok(msg) if msg == "power" => {
+                    let _ = ipc_tx.send(()).await;
+                }
                 Ok(_) => {}
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,

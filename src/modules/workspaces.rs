@@ -155,10 +155,7 @@ pub fn build(config: &WorkspacesConfig) -> gtk::Widget {
             if entries.is_empty() {
                 return glib::Propagation::Proceed;
             }
-            let active_idx = entries
-                .iter()
-                .position(|w| w.active)
-                .unwrap_or(0);
+            let active_idx = entries.iter().position(|w| w.active).unwrap_or(0);
             let next_idx = if dy > 0.0 {
                 (active_idx + 1) % entries.len()
             } else {
@@ -238,7 +235,7 @@ fn format_command(format: &str, info: &WorkspaceInfo) -> String {
 use wayland_client::globals::{registry_queue_init, GlobalListContents};
 use wayland_client::protocol::wl_output::WlOutput;
 use wayland_client::protocol::wl_registry;
-use wayland_client::{Connection, Dispatch, QueueHandle, delegate_noop};
+use wayland_client::{delegate_noop, Connection, Dispatch, QueueHandle};
 use wayland_protocols::ext::workspace::v1::client::{
     ext_workspace_group_handle_v1::{self, ExtWorkspaceGroupHandleV1},
     ext_workspace_handle_v1::{self, ExtWorkspaceHandleV1},
@@ -296,10 +293,8 @@ fn run_workspace_watcher(
     let manager: ExtWorkspaceManagerV1 = match globals.bind(&qh, 1..=1, ()) {
         Ok(manager) => manager,
         Err(_) => {
-            let _ = event_tx.blocking_send(WorkspaceEvent::Unavailable(
-                "ext_workspace_v1 not supported by compositor".to_string(),
-            ));
-            return Ok(());
+            warn!("ext_workspace_v1 not available; falling back to SartWC IPC workspace backend");
+            return run_sartwc_workspace_watcher(event_tx, request_rx);
         }
     };
 
@@ -537,9 +532,7 @@ impl Dispatch<ExtWorkspaceGroupHandleV1, ()> for WaylandState {
                 state.groups[g_idx].outputs.push(output);
             }
             ext_workspace_group_handle_v1::Event::OutputLeave { output } => {
-                state.groups[g_idx]
-                    .outputs
-                    .retain(|o| o != &output);
+                state.groups[g_idx].outputs.retain(|o| o != &output);
             }
             ext_workspace_group_handle_v1::Event::WorkspaceEnter { workspace } => {
                 if let Some(ws) = state.workspaces.iter_mut().find(|w| w.handle == workspace) {
@@ -594,4 +587,227 @@ impl Dispatch<ExtWorkspaceHandleV1, ()> for WaylandState {
             _ => {}
         }
     }
+}
+
+// ---- SartWC IPC workspace fallback ----
+
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::net::UnixStream;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+fn run_sartwc_workspace_watcher(
+    event_tx: mpsc::Sender<WorkspaceEvent>,
+    mut request_rx: mpsc::Receiver<WorkspaceRequest>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let socket_path = sartwc_ipc_socket_path()?;
+
+    loop {
+        while let Ok(request) = request_rx.try_recv() {
+            let _ = sartwc_handle_workspace_request(&socket_path, request);
+        }
+
+        let mut stream = match UnixStream::connect(&socket_path) {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("SartWC IPC workspace backend connect failed: {e}");
+                std::thread::sleep(Duration::from_millis(500));
+                continue;
+            }
+        };
+
+        stream.set_read_timeout(Some(Duration::from_millis(200)))?;
+        let mut reader = BufReader::new(stream.try_clone()?);
+
+        stream.write_all(b"subscribe-events\n")?;
+        stream.flush()?;
+
+        let mut ack = String::new();
+        match reader.read_line(&mut ack) {
+            Ok(0) => {
+                warn!("SartWC IPC closed before subscribe ack");
+                std::thread::sleep(Duration::from_millis(250));
+                continue;
+            }
+            Ok(_) => {}
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                warn!("Timed out waiting for SartWC subscribe ack");
+                std::thread::sleep(Duration::from_millis(250));
+                continue;
+            }
+            Err(e) => return Err(Box::new(e)),
+        }
+        if !ack.trim().starts_with("OK") {
+            return Err(format!("SartWC subscribe-events failed: {}", ack.trim()).into());
+        }
+
+        match sartwc_query_workspaces(&socket_path) {
+            Ok(snapshot) => {
+                let _ = event_tx.blocking_send(WorkspaceEvent::Snapshot(snapshot));
+            }
+            Err(e) => warn!("SartWC workspace snapshot failed after subscribe: {e}"),
+        }
+
+        loop {
+            while let Ok(request) = request_rx.try_recv() {
+                if let Err(e) = sartwc_handle_workspace_request(&socket_path, request) {
+                    warn!("SartWC workspace request failed: {e}");
+                }
+            }
+
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => {
+                    warn!("SartWC event stream closed; reconnecting");
+                    break;
+                }
+                Ok(_) => {
+                    let trimmed = line.trim();
+                    if !sartwc_workspace_event_is_relevant(trimmed) {
+                        continue;
+                    }
+                    match sartwc_query_workspaces(&socket_path) {
+                        Ok(snapshot) => {
+                            let _ = event_tx.blocking_send(WorkspaceEvent::Snapshot(snapshot));
+                        }
+                        Err(e) => warn!("SartWC workspace refresh failed: {e}"),
+                    }
+                }
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                {
+                    continue;
+                }
+                Err(e) => {
+                    warn!("SartWC event read error: {e}");
+                    break;
+                }
+            }
+        }
+
+        std::thread::sleep(Duration::from_millis(250));
+    }
+}
+
+fn sartwc_workspace_event_is_relevant(line: &str) -> bool {
+    line.starts_with("EVENT workspace-changed") || line.starts_with("EVENT workspace-list-changed")
+}
+
+fn sartwc_handle_workspace_request(
+    socket_path: &Path,
+    request: WorkspaceRequest,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match request {
+        WorkspaceRequest::Activate(id) => {
+            let idx: u32 = id.try_into().map_err(|_| "workspace id out of range")?;
+            if idx == 0 {
+                return Ok(());
+            }
+            let cmd = format!("GoToDesktop to={idx}");
+            let _ = sartwc_send_ipc_command(socket_path, &cmd)?;
+        }
+    }
+    Ok(())
+}
+
+fn sartwc_send_ipc_command(
+    socket_path: &Path,
+    cmd: &str,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut stream = UnixStream::connect(socket_path)?;
+    stream.write_all(cmd.as_bytes())?;
+    stream.write_all(b"\n")?;
+    stream.flush()?;
+
+    let mut reader = BufReader::new(stream);
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    loop {
+        line.clear();
+        let n = reader.read_line(&mut line)?;
+        if n == 0 {
+            break;
+        }
+        let trimmed = line.trim().to_string();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with("ERROR") {
+            return Err(trimmed.into());
+        }
+        lines.push(trimmed.clone());
+        if trimmed == "END" || trimmed.starts_with("OK") {
+            break;
+        }
+    }
+    Ok(lines)
+}
+
+fn sartwc_query_workspaces(
+    socket_path: &Path,
+) -> Result<Vec<WorkspaceInfo>, Box<dyn std::error::Error>> {
+    let lines = sartwc_send_ipc_command(socket_path, "list-workspaces-json")?;
+    let body = lines
+        .into_iter()
+        .find(|line| line.starts_with('{'))
+        .ok_or("missing JSON workspace response")?;
+
+    #[derive(serde::Deserialize)]
+    struct WorkspaceListJson {
+        current_workspace: u32,
+        workspaces: Vec<WorkspaceJson>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct WorkspaceJson {
+        index: u32,
+        name: String,
+        active: bool,
+    }
+
+    let parsed: WorkspaceListJson = serde_json::from_str(&body)?;
+    let mut out: Vec<WorkspaceInfo> = parsed
+        .workspaces
+        .into_iter()
+        .map(|ws| WorkspaceInfo {
+            id: ws.index as u64,
+            name: if ws.name.is_empty() {
+                ws.index.to_string()
+            } else {
+                ws.name
+            },
+            index: ws.index,
+            group: 1,
+            active: ws.active,
+            urgent: false,
+            hidden: false,
+        })
+        .collect();
+
+    if parsed.current_workspace > 0 {
+        for ws in &mut out {
+            ws.active = ws.index == parsed.current_workspace;
+        }
+    }
+
+    out.sort_by_key(|w| (w.group, w.index));
+    Ok(out)
+}
+
+fn sartwc_ipc_socket_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    if let Ok(path) = std::env::var("SARTWC_IPC_SOCKET") {
+        if !path.is_empty() {
+            return Ok(PathBuf::from(path));
+        }
+    }
+
+    let runtime = std::env::var("XDG_RUNTIME_DIR")
+        .map_err(|_| "SARTWC_IPC_SOCKET not set and XDG_RUNTIME_DIR missing")?;
+    let display = std::env::var("WAYLAND_DISPLAY")
+        .map_err(|_| "SARTWC_IPC_SOCKET not set and WAYLAND_DISPLAY missing")?;
+    Ok(PathBuf::from(format!("{runtime}/sartwc-{display}.sock")))
 }

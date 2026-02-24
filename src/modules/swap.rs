@@ -44,8 +44,7 @@ pub fn build(config: &SwapConfig, colors: &ThemeColors) -> gtk::Widget {
     let interval_secs = config.interval;
 
     crate::spawn(async move {
-        let mut interval =
-            tokio::time::interval(tokio::time::Duration::from_secs(interval_secs));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval_secs));
         loop {
             interval.tick().await;
             if let Some(data) = read_swap() {

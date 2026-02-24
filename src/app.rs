@@ -41,14 +41,22 @@ pub fn activate(app: &gtk::Application) {
             let families = String::from_utf8_lossy(&output.stdout);
             for name in ["Font Awesome 7", "Font Awesome 6", "Font Awesome 5"] {
                 let found = families.lines().any(|l| l.contains(name));
-                debug!("Font check: \"{name}\" -> {}", if found { "FOUND" } else { "NOT FOUND" });
+                debug!(
+                    "Font check: \"{name}\" -> {}",
+                    if found { "FOUND" } else { "NOT FOUND" }
+                );
             }
         }
     });
 
     // Extract theme colors and generate CSS
     let colors = theme::extract_colors(&cfg.theme);
-    let css = theme::generate_css(&colors, cfg.bar.height, &cfg.theme.font, cfg.theme.font_size);
+    let css = theme::generate_css(
+        &colors,
+        cfg.bar.height,
+        &cfg.theme.font,
+        cfg.theme.font_size,
+    );
 
     debug!("Extracted theme colors: {colors:?}");
     debug!("Generated CSS ({} bytes):\n{css}", css.len());
@@ -67,13 +75,12 @@ pub fn activate(app: &gtk::Application) {
     provider.load_from_string(&css);
     let priority = gtk::STYLE_PROVIDER_PRIORITY_USER + 1;
     let display = gtk::gdk::Display::default().expect("Could not get default display");
-    gtk::style_context_add_provider_for_display(
-        &display,
-        &provider,
-        priority,
+    gtk::style_context_add_provider_for_display(&display, &provider, priority);
+    info!(
+        "CSS provider registered at priority {priority} (USER={}, THEME={})",
+        gtk::STYLE_PROVIDER_PRIORITY_USER,
+        gtk::STYLE_PROVIDER_PRIORITY_THEME
     );
-    info!("CSS provider registered at priority {priority} (USER={}, THEME={})",
-        gtk::STYLE_PROVIDER_PRIORITY_USER, gtk::STYLE_PROVIDER_PRIORITY_THEME);
 
     // Set icon theme if configured
     set_icon_theme(&cfg.theme.icon_theme);
@@ -99,7 +106,12 @@ pub fn activate(app: &gtk::Application) {
 
         let cfg = config::load_config(&config_path);
         let colors = theme::extract_colors(&cfg.theme);
-        let css = theme::generate_css(&colors, cfg.bar.height, &cfg.theme.font, cfg.theme.font_size);
+        let css = theme::generate_css(
+            &colors,
+            cfg.bar.height,
+            &cfg.theme.font,
+            cfg.theme.font_size,
+        );
 
         debug!("Reload: extracted colors: {colors:?}");
         debug!("Reload: generated CSS ({} bytes):\n{css}", css.len());

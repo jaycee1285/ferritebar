@@ -1,13 +1,13 @@
-pub mod clock;
-pub mod memory;
-mod meminfo;
-pub mod swap;
-pub mod script;
-pub mod battery;
 pub mod audio;
+pub mod battery;
+pub mod clock;
+mod meminfo;
+pub mod memory;
 pub mod network;
-pub mod tray;
+pub mod script;
+pub mod swap;
 pub mod taskbar;
+pub mod tray;
 pub mod workspaces;
 
 use gtk::prelude::*;
@@ -71,7 +71,11 @@ pub fn set_tooltip_text<W: IsA<gtk::Widget>>(widget: W, text: Option<&str>) {
 
 fn tooltip_state(widget: &gtk::Widget) -> Option<&TooltipState> {
     // SAFETY: TooltipState is stored on the widget and lives for the widget's lifetime.
-    unsafe { widget.data::<TooltipState>(TOOLTIP_STATE_KEY).map(|ptr| ptr.as_ref()) }
+    unsafe {
+        widget
+            .data::<TooltipState>(TOOLTIP_STATE_KEY)
+            .map(|ptr| ptr.as_ref())
+    }
 }
 
 fn ensure_tooltip_state(widget: &gtk::Widget) -> &TooltipState {
@@ -110,13 +114,24 @@ fn build_module(
         ModuleConfig::Swap(cfg) => Some(swap::build(cfg, colors)),
         ModuleConfig::Workspaces(cfg) => Some(workspaces::build(cfg)),
         ModuleConfig::Script(cfg) => Some(script::build(cfg)),
-        ModuleConfig::Tray(cfg) => Some(tray::build(cfg, app, bar_position, bar_height, bar_edge_margin)),
+        ModuleConfig::Tray(cfg) => Some(tray::build(
+            cfg,
+            app,
+            bar_position,
+            bar_height,
+            bar_edge_margin,
+        )),
         ModuleConfig::Taskbar(cfg) => Some(taskbar::build(cfg)),
     }
 }
 
 /// Populate bar containers with modules from config
-pub fn populate_bar(bar: &Bar, layout: &ModuleLayout, colors: &ThemeColors, app: &gtk::Application) {
+pub fn populate_bar(
+    bar: &Bar,
+    layout: &ModuleLayout,
+    colors: &ThemeColors,
+    app: &gtk::Application,
+) {
     let pos = bar.position();
     let height = bar.height();
     let edge_margin = bar.edge_margin();

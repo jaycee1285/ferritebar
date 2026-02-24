@@ -1,6 +1,6 @@
-use gtk::prelude::*;
-use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::gdk::Texture;
+use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
+use gtk::prelude::*;
 use gtk_layer_shell::LayerShell;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -82,10 +82,7 @@ pub fn build(
                             address: address.clone(),
                             icon_name: item.icon_name.clone(),
                             icon_pixmap: item.icon_pixmap.clone(),
-                            icon_theme_path: item
-                                .icon_theme_path
-                                .as_ref()
-                                .map(|p| p.clone()),
+                            icon_theme_path: item.icon_theme_path.as_ref().map(|p| p.clone()),
                             title: item.title.clone(),
                             menu: menu.clone(),
                             menu_path: item.menu.clone(),
@@ -228,8 +225,7 @@ pub fn build(
     });
 
     // Track tray items by address
-    let items: Rc<RefCell<HashMap<String, TrayItem>>> =
-        Rc::new(RefCell::new(HashMap::new()));
+    let items: Rc<RefCell<HashMap<String, TrayItem>>> = Rc::new(RefCell::new(HashMap::new()));
 
     let container_ref = container.clone();
     let items_ref = items.clone();
@@ -254,9 +250,8 @@ pub fn build(
                 if !name.is_empty() {
                     if let Some(ref path) = icon_theme_path {
                         if !path.is_empty() {
-                            let icon_theme = gtk::IconTheme::for_display(
-                                &gtk::gdk::Display::default().unwrap(),
-                            );
+                            let icon_theme =
+                                gtk::IconTheme::for_display(&gtk::gdk::Display::default().unwrap());
                             icon_theme.add_search_path(path);
                         }
                     }
@@ -291,24 +286,22 @@ pub fn build(
             let menu_box_rc = menu_box_ref.clone();
             let tx = activate_tx.clone();
             right_click.connect_released(move |gesture, _, _, _| {
-                let Some(widget) = gesture.widget() else { return };
-                show_context_menu(
-                    &popup_rc,
-                    &menu_box_rc,
-                    &items_rc,
-                    &addr,
-                    &widget,
-                    &tx,
-                );
+                let Some(widget) = gesture.widget() else {
+                    return;
+                };
+                show_context_menu(&popup_rc, &menu_box_rc, &items_rc, &addr, &widget, &tx);
             });
             image.add_controller(right_click);
 
             container_ref.append(&image);
-            items_ref.borrow_mut().insert(address, TrayItem {
-                image,
-                menu,
-                menu_path,
-            });
+            items_ref.borrow_mut().insert(
+                address,
+                TrayItem {
+                    image,
+                    menu,
+                    menu_path,
+                },
+            );
             container_ref.set_visible(true);
         }
         TrayUpdate::UpdateIcon {
@@ -459,7 +452,7 @@ fn build_menu_items(
     popup: &gtk::ApplicationWindow,
     depth: u32,
 ) {
-    use system_tray::menu::{MenuType, ToggleType, ToggleState};
+    use system_tray::menu::{MenuType, ToggleState, ToggleType};
 
     for item in items {
         if !item.visible {
@@ -551,7 +544,7 @@ fn format_menu_label(
     toggle_type: &system_tray::menu::ToggleType,
     toggle_state: &system_tray::menu::ToggleState,
 ) -> String {
-    use system_tray::menu::{ToggleType, ToggleState};
+    use system_tray::menu::{ToggleState, ToggleType};
 
     match toggle_type {
         ToggleType::Checkmark => {

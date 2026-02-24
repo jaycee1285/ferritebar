@@ -37,11 +37,7 @@ pub fn read_meminfo() -> Option<MemInfo> {
 }
 
 fn parse_kb(s: &str) -> Option<u64> {
-    s.trim()
-        .trim_end_matches("kB")
-        .trim()
-        .parse::<u64>()
-        .ok()
+    s.trim().trim_end_matches("kB").trim().parse::<u64>().ok()
 }
 
 pub fn format_bytes_into(buf: &mut String, bytes: u64) {

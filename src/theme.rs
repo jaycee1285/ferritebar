@@ -58,7 +58,10 @@ pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
             colors.fg = c;
         }
         // Text: view_fg_color, then legacy theme_text_color, then window_fg_color
-        if let Some(c) = resolve_color(&defined, &["view_fg_color", "theme_text_color", "window_fg_color"]) {
+        if let Some(c) = resolve_color(
+            &defined,
+            &["view_fg_color", "theme_text_color", "window_fg_color"],
+        ) {
             colors.text = c;
         }
         // Selected/accent bg: libadwaita accent_bg_color, then legacy theme_selected_bg_color
@@ -80,7 +83,10 @@ pub fn extract_colors(theme_config: &ThemeConfig) -> ThemeColors {
             colors.error = c;
         }
 
-        debug!("Extracted {} @define-color entries from GTK4 theme", defined.len());
+        debug!(
+            "Extracted {} @define-color entries from GTK4 theme",
+            defined.len()
+        );
         debug!("Resolved colors: bg={}, fg={}, text={}, selected_bg={}, selected_fg={}, success={}, warning={}, error={}",
             colors.bg, colors.fg, colors.text, colors.selected_bg, colors.selected_fg,
             colors.success, colors.warning, colors.error);
@@ -133,13 +139,23 @@ fn find_gtk4_theme_css() -> Option<String> {
     if user_css.exists() {
         if let Ok(css) = std::fs::read_to_string(&user_css) {
             if css.contains("@define-color") {
-                debug!("Using user gtk.css at {} ({} bytes)", user_css.display(), css.len());
+                debug!(
+                    "Using user gtk.css at {} ({} bytes)",
+                    user_css.display(),
+                    css.len()
+                );
                 return Some(css);
             } else {
-                warn!("User gtk.css exists at {} but has no @define-color directives", user_css.display());
+                warn!(
+                    "User gtk.css exists at {} but has no @define-color directives",
+                    user_css.display()
+                );
             }
         } else {
-            warn!("User gtk.css exists at {} but failed to read", user_css.display());
+            warn!(
+                "User gtk.css exists at {} but failed to read",
+                user_css.display()
+            );
         }
     } else {
         debug!("No user gtk.css at {}", user_css.display());
@@ -148,10 +164,20 @@ fn find_gtk4_theme_css() -> Option<String> {
     // Search theme directories
     if let Some(name) = theme_name {
         let search_paths = vec![
-            config_dir.join("themes").join(&name).join("gtk-4.0").join("gtk.css"),
-            PathBuf::from("/usr/share/themes").join(&name).join("gtk-4.0").join("gtk.css"),
+            config_dir
+                .join("themes")
+                .join(&name)
+                .join("gtk-4.0")
+                .join("gtk.css"),
+            PathBuf::from("/usr/share/themes")
+                .join(&name)
+                .join("gtk-4.0")
+                .join("gtk.css"),
             PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                .join(".themes").join(&name).join("gtk-4.0").join("gtk.css"),
+                .join(".themes")
+                .join(&name)
+                .join("gtk-4.0")
+                .join("gtk.css"),
         ];
 
         for path in search_paths {
@@ -177,7 +203,11 @@ fn parse_define_colors(css: &str) -> HashMap<String, String> {
             let rest = rest.trim();
             if let Some(space_idx) = rest.find(|c: char| c.is_whitespace()) {
                 let name = rest[..space_idx].trim().to_string();
-                let value = rest[space_idx..].trim().trim_end_matches(';').trim().to_string();
+                let value = rest[space_idx..]
+                    .trim()
+                    .trim_end_matches(';')
+                    .trim()
+                    .to_string();
                 colors.insert(name, value);
             }
         }
@@ -197,7 +227,12 @@ fn parse_define_colors(css: &str) -> HashMap<String, String> {
 }
 
 /// Generate programmatic CSS from theme colors
-pub fn generate_css(colors: &ThemeColors, bar_height: u32, font: &str, font_size_override: Option<u32>) -> String {
+pub fn generate_css(
+    colors: &ThemeColors,
+    bar_height: u32,
+    font: &str,
+    font_size_override: Option<u32>,
+) -> String {
     format!(
         r#"
 window {{
@@ -412,7 +447,9 @@ tooltip label {{
         error = colors.error,
         font = font,
         font_size = font_size_override.unwrap_or((bar_height as f64 * 0.55).max(14.0) as u32),
-        tooltip_font_size = (font_size_override.unwrap_or((bar_height as f64 * 0.55).max(14.0) as u32) as f64 * 0.75) as u32,
+        tooltip_font_size =
+            (font_size_override.unwrap_or((bar_height as f64 * 0.55).max(14.0) as u32) as f64
+                * 0.75) as u32,
         bar_h = bar_height,
     )
 }

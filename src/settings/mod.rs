@@ -57,7 +57,9 @@ pub fn open(app: &gtk::Application) {
         Ok(contents) => buffer.set_text(&contents),
         Err(e) => {
             error!("Could not read config: {e}");
-            buffer.set_text(&format!("# Could not read config: {e}\n# Creating new config\n\n"));
+            buffer.set_text(&format!(
+                "# Could not read config: {e}\n# Creating new config\n\n"
+            ));
         }
     }
 
