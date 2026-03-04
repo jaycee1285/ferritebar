@@ -38,12 +38,25 @@ icon_size = 32
 max_title_length = 30
 
 [[modules.right]]
+type = "api_spend"
+icon = "\uf108"
+interval = 300
+data_path = "~/.config/ferritebar/API.json"
+
+[[modules.right]]
 type = "script"
 name = "wg"
 exec = "ip link show wg0 >/dev/null 2>&1 && echo '{\"text\":\"VPN\",\"class\":\"connected\"}' || echo '{\"text\":\"VPN\",\"class\":\"disconnected\"}'"
 interval = 30
 icon = "\uf023"
 return_type = "json"
+
+# API.json example:
+# {
+#   "openai": { "api_key": "sk-...", "limit": 20.0 },
+#   "anthropic": { "api_key": "sk-ant-admin-...", "limit": 20.0 },
+#   "openrouter": { "api_key": "sk-or-...", "limit": 10.0 }
+# }
 
 [[modules.right]]
 type = "tray"

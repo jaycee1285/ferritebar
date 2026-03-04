@@ -237,7 +237,6 @@ pub fn generate_css(
         r#"
 window {{
     background-color: transparent;
-    color: {selected_bg};
 }}
 
 .bar-container {{
@@ -306,7 +305,7 @@ window {{
 
 .taskbar-button.active {{
     background-color: alpha({selected_bg}, 0.5);
-    color: {selected_fg};
+    color: {fg};
 }}
 
 .workspace-button.active {{
@@ -348,16 +347,16 @@ window {{
 }}
 
 .tray-menu {{
-    background-color: alpha({bg}, 0.85);
+    background-color: alpha({fg}, 0.85);
     border: 1px solid alpha({fg}, 0.2);
     border-radius: 8px;
     padding: 4px;
 }}
 
 .tray-menu button {{
-    background: transparent;
+    background: {selected_fg};
     border: none;
-    color: {fg};
+    color: {selected_bg};
     padding: 6px 12px;
     border-radius: 4px;
     min-height: 0;
@@ -365,6 +364,7 @@ window {{
 
 .tray-menu button:hover {{
     background-color: alpha({selected_bg}, 0.3);
+    color: alpha({fg}, 0.8)
 }}
 
 .tray-menu button:disabled {{
@@ -378,7 +378,7 @@ window {{
 }}
 
 .tray-menu .submenu-header {{
-    color: alpha({fg}, 0.6);
+    color: {selected_fg};
     padding: 4px 12px 2px 12px;
     font-size: 0.9em;
 }}
@@ -400,7 +400,7 @@ window {{
 }}
 
 .muted label.module-label {{
-    color: alpha({fg}, 0.4);
+    color: alpha({fg}, 0.8);
 }}
 
 .charging label.module-label {{

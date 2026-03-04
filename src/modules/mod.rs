@@ -1,3 +1,4 @@
+pub mod api_spend;
 pub mod audio;
 pub mod battery;
 pub mod clock;
@@ -106,6 +107,7 @@ fn build_module(
     bar_edge_margin: i32,
 ) -> Option<gtk::Widget> {
     match config {
+        ModuleConfig::ApiSpend(cfg) => Some(api_spend::build(cfg)),
         ModuleConfig::Clock(cfg) => Some(clock::build(cfg)),
         ModuleConfig::Battery(cfg) => Some(battery::build(cfg)),
         ModuleConfig::Audio(cfg) => Some(audio::build(cfg)),

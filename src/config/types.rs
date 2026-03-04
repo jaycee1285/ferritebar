@@ -87,6 +87,8 @@ pub struct ModuleLayout {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum ModuleConfig {
+    #[serde(rename = "api_spend")]
+    ApiSpend(ApiSpendConfig),
     #[serde(rename = "clock")]
     Clock(ClockConfig),
     #[serde(rename = "battery")]
@@ -107,6 +109,28 @@ pub enum ModuleConfig {
     Taskbar(TaskbarConfig),
     #[serde(rename = "script")]
     Script(ScriptConfig),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ApiSpendConfig {
+    #[serde(default = "default_api_spend_icon")]
+    pub icon: String,
+    #[serde(default = "default_api_spend_interval")]
+    pub interval: u64,
+    #[serde(default = "default_api_spend_data_path")]
+    pub data_path: String,
+}
+
+fn default_api_spend_icon() -> String {
+    "\u{f108}".to_string()
+}
+
+fn default_api_spend_interval() -> u64 {
+    300
+}
+
+fn default_api_spend_data_path() -> String {
+    "~/.config/ferritebar/API.json".to_string()
 }
 
 #[derive(Debug, Deserialize)]

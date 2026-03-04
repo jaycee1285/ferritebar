@@ -8,6 +8,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        lib = pkgs.lib;
 
         runtimeDeps = with pkgs; [
           gtk4
@@ -68,9 +69,16 @@
 
           buildInputs = runtimeDeps;
 
-          shellHook = ''
-            export RUST_LOG=ferritebar=debug
-          '';
+          RUST_LOG = "ferritebar=debug";
+          PKG_CONFIG_PATH = lib.makeSearchPathOutput "dev" "lib/pkgconfig" runtimeDeps;
+          GSK_RENDERER = "cairo";
+          GDK_DISABLE = "vulkan,gl,dmabuf,offload";
+          GTK_A11Y = "none";
+          NO_AT_BRIDGE = "1";
+          GDK_BACKEND = "wayland";
+          GTK_MEDIA = "none";
+          GTK_CSD = "0";
+          FONTCONFIG_FILE = barFontconfig;
         };
 
         packages.default = pkgs.symlinkJoin {
