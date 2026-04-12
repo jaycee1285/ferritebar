@@ -1,0 +1,13 @@
+current_objective: "Keep Ferritebar tray and popup menus readable across GTK light/dark themes without relying on a single fragile color pair."
+state: "Implemented contrast-scored GTK menu color selection, menu-specific overrides, and optional --wcag report writing."
+next_steps:
+  - "Document `--wcag` and `theme.menu_bg_color` / `theme.menu_fg_color` in user-facing docs if this repo grows a README or release notes."
+  - "Optionally extend CSS color parsing if future GTK themes expose values outside hex/rgb/rgba."
+manual_smoke:
+  status: "passed"
+  date: "2026-03-29"
+  evidence: "John switched across a light theme and a dark theme and confirmed the tray menu met contrast standards in both."
+known_gaps:
+  - "Contrast chooser depends on parseable GTK color values; unsupported CSS color syntaxes fall back to variable priority."
+  - "No surfaced runtime warning yet when every candidate pair fails WCAG AA."
+human_blockers: []

@@ -1,0 +1,461 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Config {
+    #[serde(default)]
+    pub bar: BarConfig,
+    #[serde(default)]
+    pub theme: ThemeConfig,
+    #[serde(default)]
+    pub modules: ModuleLayout,
+    #[serde(default)]
+    pub power: PowerConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct BarConfig {
+    #[serde(default = "default_position")]
+    pub position: Position,
+    #[serde(default = "default_height")]
+    pub height: u32,
+    #[serde(default)]
+    pub margin: MarginConfig,
+}
+
+impl Default for BarConfig {
+    fn default() -> Self {
+        Self {
+            position: Position::Top,
+            height: 32,
+            margin: MarginConfig::default(),
+        }
+    }
+}
+
+fn default_position() -> Position {
+    Position::Top
+}
+
+fn default_height() -> u32 {
+    32
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Position {
+    Top,
+    Bottom,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct MarginConfig {
+    #[serde(default)]
+    pub top: i32,
+    #[serde(default)]
+    pub bottom: i32,
+    #[serde(default)]
+    pub left: i32,
+    #[serde(default)]
+    pub right: i32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ThemeConfig {
+    pub icon_theme: Option<String>,
+    #[serde(default = "default_font")]
+    pub font: String,
+    pub font_size: Option<u32>,
+    pub menu_bg_color: Option<String>,
+    pub menu_fg_color: Option<String>,
+    pub success_color: Option<String>,
+    pub warning_color: Option<String>,
+    pub error_color: Option<String>,
+}
+
+fn default_font() -> String {
+    "Fira Sans".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ModuleLayout {
+    #[serde(default)]
+    pub left: Vec<ModuleConfig>,
+    #[serde(default)]
+    pub center: Vec<ModuleConfig>,
+    #[serde(default)]
+    pub right: Vec<ModuleConfig>,
+    #[serde(default)]
+    pub hidden: Vec<ModuleConfig>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(tag = "type")]
+pub enum ModuleConfig {
+    #[serde(rename = "api_spend")]
+    ApiSpend(ApiSpendConfig),
+    #[serde(rename = "clock")]
+    Clock(ClockConfig),
+    #[serde(rename = "battery")]
+    Battery(BatteryConfig),
+    #[serde(rename = "audio")]
+    Audio(AudioConfig),
+    #[serde(rename = "network")]
+    Network(NetworkConfig),
+    #[serde(rename = "memory")]
+    Memory(MemoryConfig),
+    #[serde(rename = "swap")]
+    Swap(SwapConfig),
+    #[serde(rename = "workspaces")]
+    Workspaces(WorkspacesConfig),
+    #[serde(rename = "tray")]
+    Tray(TrayConfig),
+    #[serde(rename = "taskbar")]
+    Taskbar(TaskbarConfig),
+    #[serde(rename = "script")]
+    Script(ScriptConfig),
+    #[serde(rename = "weather")]
+    Weather(WeatherConfig),
+    #[serde(rename = "agent_usage")]
+    AgentUsage(AgentUsageConfig),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ApiSpendConfig {
+    #[serde(default = "default_api_spend_icon")]
+    pub icon: String,
+    #[serde(default = "default_api_spend_interval")]
+    pub interval: u64,
+    #[serde(default = "default_api_spend_data_path")]
+    pub data_path: String,
+}
+
+fn default_api_spend_icon() -> String {
+    "\u{f108}".to_string()
+}
+
+fn default_api_spend_interval() -> u64 {
+    300
+}
+
+fn default_api_spend_data_path() -> String {
+    "~/.config/ferritebar/API.json".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ClockConfig {
+    #[serde(default = "default_clock_format")]
+    pub format: String,
+    #[serde(default = "default_clock_tooltip_format")]
+    pub tooltip_format: String,
+    pub on_click: Option<String>,
+}
+
+fn default_clock_format() -> String {
+    "%-I:%M %p".to_string()
+}
+
+fn default_clock_tooltip_format() -> String {
+    "%A, %B %d, %Y".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct BatteryConfig {
+    #[serde(default = "default_battery_format")]
+    pub format: String,
+    #[serde(default = "default_battery_path")]
+    pub path: String,
+    #[serde(default = "default_battery_interval")]
+    pub interval: u64,
+    #[serde(default = "default_battery_max_charge")]
+    pub max_charge: u8,
+}
+
+fn default_battery_format() -> String {
+    "{icon}".to_string()
+}
+
+fn default_battery_max_charge() -> u8 {
+    100
+}
+
+fn default_battery_path() -> String {
+    "/sys/class/power_supply/BAT0".to_string()
+}
+
+fn default_battery_interval() -> u64 {
+    60
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AudioConfig {
+    #[serde(default = "default_audio_format")]
+    pub format: String,
+    #[serde(default = "default_mute_command")]
+    pub on_click: String,
+}
+
+fn default_audio_format() -> String {
+    "{icon} {volume}%".to_string()
+}
+
+fn default_mute_command() -> String {
+    "wpctl set-mute @DEFAULT_SINK@ toggle".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct NetworkConfig {
+    #[serde(default = "default_network_format")]
+    pub format: String,
+    #[serde(default = "default_network_interval")]
+    pub interval: u64,
+    pub on_click: Option<String>,
+}
+
+fn default_network_format() -> String {
+    "{icon}".to_string()
+}
+
+fn default_network_interval() -> u64 {
+    60
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct MemoryConfig {
+    #[serde(default = "default_memory_format")]
+    pub format: String,
+    #[serde(default = "default_memory_interval")]
+    pub interval: u64,
+    #[serde(default = "default_bar_width")]
+    pub bar_width: i32,
+    #[serde(default = "default_bar_height")]
+    pub bar_height: i32,
+}
+
+fn default_memory_format() -> String {
+    "{icon}".to_string()
+}
+
+fn default_memory_interval() -> u64 {
+    15
+}
+
+fn default_bar_width() -> i32 {
+    40
+}
+
+fn default_bar_height() -> i32 {
+    14
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SwapConfig {
+    #[serde(default = "default_swap_format")]
+    pub format: String,
+    #[serde(default = "default_swap_interval")]
+    pub interval: u64,
+    #[serde(default = "default_bar_width")]
+    pub bar_width: i32,
+    #[serde(default = "default_bar_height")]
+    pub bar_height: i32,
+}
+
+fn default_swap_format() -> String {
+    "{icon}".to_string()
+}
+
+fn default_swap_interval() -> u64 {
+    15
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct WorkspacesConfig {
+    #[serde(default = "default_workspaces_format")]
+    pub format: String,
+    #[serde(default)]
+    pub show_hidden: bool,
+    #[serde(default = "default_workspaces_scroll")]
+    pub scroll: bool,
+    pub sync_command: Option<String>,
+    #[serde(default = "default_workspaces_sync_only_active")]
+    pub sync_only_active: bool,
+}
+
+fn default_workspaces_format() -> String {
+    "{index}".to_string()
+}
+
+fn default_workspaces_scroll() -> bool {
+    true
+}
+
+fn default_workspaces_sync_only_active() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TrayConfig {
+    #[serde(default = "default_tray_icon_size")]
+    pub icon_size: i32,
+}
+
+fn default_tray_icon_size() -> i32 {
+    24
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TaskbarDisplay {
+    Icon,
+    Title,
+    Both,
+}
+
+fn default_taskbar_display() -> TaskbarDisplay {
+    TaskbarDisplay::Icon
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TaskbarConfig {
+    #[serde(default = "default_taskbar_max_title")]
+    pub max_title_length: usize,
+    #[serde(default = "default_taskbar_icon_size")]
+    pub icon_size: i32,
+    #[serde(default = "default_taskbar_display")]
+    pub display: TaskbarDisplay,
+    pub on_click: Option<String>,
+}
+
+fn default_taskbar_max_title() -> usize {
+    30
+}
+
+fn default_taskbar_icon_size() -> i32 {
+    32
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PowerConfig {
+    #[serde(default = "default_lock_cmd")]
+    pub lock_cmd: String,
+    #[serde(default = "default_suspend_cmd")]
+    pub suspend_cmd: String,
+    #[serde(default = "default_reboot_cmd")]
+    pub reboot_cmd: String,
+    #[serde(default = "default_shutdown_cmd")]
+    pub shutdown_cmd: String,
+    pub logout_cmd: Option<String>,
+}
+
+impl Default for PowerConfig {
+    fn default() -> Self {
+        Self {
+            lock_cmd: default_lock_cmd(),
+            suspend_cmd: default_suspend_cmd(),
+            reboot_cmd: default_reboot_cmd(),
+            shutdown_cmd: default_shutdown_cmd(),
+            logout_cmd: None,
+        }
+    }
+}
+
+fn default_lock_cmd() -> String {
+    "swaylock".to_string()
+}
+
+fn default_suspend_cmd() -> String {
+    "systemctl suspend".to_string()
+}
+
+fn default_reboot_cmd() -> String {
+    "systemctl reboot".to_string()
+}
+
+fn default_shutdown_cmd() -> String {
+    "systemctl poweroff".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ScriptConfig {
+    pub name: String,
+    pub exec: String,
+    #[serde(default = "default_script_interval")]
+    pub interval: u64,
+    pub icon: Option<String>,
+    #[serde(default = "default_return_type")]
+    pub return_type: String,
+    pub on_click: Option<String>,
+}
+
+fn default_script_interval() -> u64 {
+    60
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct WeatherConfig {
+    pub zip: Option<String>,
+    pub lat: Option<f64>,
+    pub lon: Option<f64>,
+    #[serde(default = "default_weather_interval")]
+    pub interval: u64,
+    pub unit: Option<String>,
+}
+
+fn default_weather_interval() -> u64 {
+    900
+}
+
+fn default_return_type() -> String {
+    "json".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AgentUsageConfig {
+    #[serde(default = "default_agent_usage_icon")]
+    pub icon: String,
+    #[serde(default = "default_agent_usage_interval")]
+    pub interval: u64,
+    #[serde(default = "default_agent_usage_data_path")]
+    pub data_path: String,
+}
+
+fn default_agent_usage_icon() -> String {
+    "\u{f544}".to_string()
+}
+
+fn default_agent_usage_interval() -> u64 {
+    300
+}
+
+fn default_agent_usage_data_path() -> String {
+    "~/.config/ferritebar/agents.json".to_string()
+}
+
+impl ModuleConfig {
+    /// Human-readable name for the toggle menu
+    pub fn display_name(&self) -> String {
+        match self {
+            ModuleConfig::ApiSpend(_) => "API Spend".to_string(),
+            ModuleConfig::Clock(_) => "Clock".to_string(),
+            ModuleConfig::Battery(_) => "Battery".to_string(),
+            ModuleConfig::Audio(_) => "Audio".to_string(),
+            ModuleConfig::Network(_) => "Network".to_string(),
+            ModuleConfig::Memory(_) => "Memory".to_string(),
+            ModuleConfig::Swap(_) => "Swap".to_string(),
+            ModuleConfig::Workspaces(_) => "Workspaces".to_string(),
+            ModuleConfig::Tray(_) => "Tray".to_string(),
+            ModuleConfig::Taskbar(_) => "Taskbar".to_string(),
+            ModuleConfig::Script(cfg) => format!("Script: {}", cfg.name),
+            ModuleConfig::Weather(_) => "Weather".to_string(),
+            ModuleConfig::AgentUsage(_) => "Agent Usage".to_string(),
+        }
+    }
+
+    /// Which section (left/center/right) this module was originally in
+    pub fn default_section(&self) -> &'static str {
+        match self {
+            ModuleConfig::Workspaces(_) | ModuleConfig::Memory(_) | ModuleConfig::Swap(_) => "left",
+            ModuleConfig::Taskbar(_) => "center",
+            _ => "right",
+        }
+    }
+}
